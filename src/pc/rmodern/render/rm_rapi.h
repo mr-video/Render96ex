@@ -13,6 +13,7 @@ public:
     virtual void deactivate() = 0;
     virtual void cleanup() = 0;
     virtual void render() = 0;
+    virtual uint32_t getRequiredWindowFlags() = 0;
 };
 
 struct RMMeshGraphNode
@@ -28,7 +29,6 @@ public:
     virtual bool checkSupport() = 0;
     virtual bool init() = 0;
     virtual rm_mesh* createMesh() = 0;
-
 };
 
 #endif

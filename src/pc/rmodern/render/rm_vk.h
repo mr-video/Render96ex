@@ -21,6 +21,7 @@ public:
     virtual bool checkSupport();
     virtual bool init();
     virtual rm_mesh* createMesh();
+    virtual uint32_t getRequiredWindowFlags();
 
     friend GLADapiproc vkLoadFunc(const char *name);
 

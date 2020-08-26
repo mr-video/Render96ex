@@ -29,6 +29,11 @@ bool rm_rapi_vk::checkSupport()
         return false;
 }
 
+uint32_t rm_rapi_vk::getRequiredWindowFlags()
+{
+    return RM_WFLAG_VULKAN;
+}
+
 bool rm_rapi_vk::init()
 {
     return false;
