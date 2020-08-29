@@ -12,6 +12,7 @@ public:
     virtual void createWindow(uint32_t flags);
     virtual void destroyWindow();
     virtual void cleanup();
+    virtual bool handleEvents();
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader();
 

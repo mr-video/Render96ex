@@ -28,6 +28,23 @@ void rm_wapi_sdl::createWindow(uint32_t flags)
 
     mWindow = SDL_CreateWindow("RModern Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, SDLFlags);
 }
+
+bool rm_wapi_sdl::handleEvents()
+{
+    SDL_Event event;
+
+    while(SDL_PollEvent(&event))
+    {
+        switch(event.type)
+        {
+        case SDL_QUIT:
+            return false;
+            break;
+        }
+    }
+
+    return true;
+}
  
 void rm_wapi_sdl::destroyWindow()
 {
