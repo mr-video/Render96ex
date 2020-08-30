@@ -323,6 +323,7 @@ ifeq ($(DEBUG),1)
   OPT_FLAGS := -g
 else
   OPT_FLAGS := -O2
+  OPT_FLAGS := -DNDEBUG
 endif
 
 # Set BITS (32/64) to compile for
