@@ -26,9 +26,22 @@ public:
     friend GLADapiproc vkLoadFunc(const char *name);
 
 private:
+    void createVkInstance();
+	void createDebugger();
+	void selectPhysicalDevice();
+	void createLogicalDevice();
+	void createSurface();
+	void createSwapchain();
+	void createRenderPass();
+	void createFrames();
+	void createSwapImages();
+	void createGraphicsPipeline();
+	void createCommandPools();
+    void recreateSwapchain();
+	void cleanupSwapchain();
+
     VkInstance mInstance = VK_NULL_HANDLE;
     PFN_vkGetInstanceProcAddr mVkGetInstanceProcAddr = nullptr;
-
     rm_wapi* mWAPI = nullptr;
 };
 
