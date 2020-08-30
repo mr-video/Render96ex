@@ -45,7 +45,7 @@ private:
     rm_wapi* mWAPI = nullptr;
 
     VkInstance mInstance = VK_NULL_HANDLE;
-    
+    VkDebugUtilsMessengerEXT mDebugMessenger;
 };
 
 #endif

@@ -3,6 +3,7 @@
 #include <glad/vulkan.h>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 
 #include "../window/rm_wapi.h"
 #include "vk_helper.h"
@@ -89,8 +90,9 @@ void rm_rapi_vk::cleanup()
 	mMesh->cleanup();
 	mMesh2->cleanup();
 
+	//*/
 	if (enableValidationLayers)
-		DestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
+		vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);	/*
 
 	for (FrameVK frame : mFrames)
 		frame.cleanup();
@@ -99,7 +101,7 @@ void rm_rapi_vk::cleanup()
 	vkDestroyCommandPool(mDevice, mResettableCommandPool, nullptr);
 	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
 	
-	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);	
 	vkDestroyDevice(mDevice, nullptr);  //*/
 	vkDestroyInstance(mInstance, nullptr);
 }
@@ -122,18 +124,21 @@ void rm_rapi_vk::createVkInstance()
 	VkInstanceCreateInfo vkInstCInfo = {};
 	vkInstCInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	vkInstCInfo.pApplicationInfo = &vkAppInfo;
-	vkInstCInfo.enabledExtensionCount = reqExtensions.size();
-	vkInstCInfo.ppEnabledExtensionNames = reqExtensions.data();
 	vkInstCInfo.flags = 0;
 
-	// if debugging, enable one validation layer
+	// if debugging, enable one validation layer and add the debug utils extension
 	if (enableValidationLayers)
 	{
 		vkInstCInfo.enabledLayerCount = validationLayerNames.size();
 		vkInstCInfo.ppEnabledLayerNames = validationLayerNames.data();
+
+		reqExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 	else
 		vkInstCInfo.enabledLayerCount = 0;
+
+	vkInstCInfo.enabledExtensionCount = reqExtensions.size();
+	vkInstCInfo.ppEnabledExtensionNames = reqExtensions.data();
 
 	VkResult result = vkCreateInstance(&vkInstCInfo, nullptr, &mInstance);
 	if (result == VK_ERROR_LAYER_NOT_PRESENT) {
@@ -146,9 +151,48 @@ void rm_rapi_vk::createVkInstance()
 	loadVulkan(mInstance, VK_NULL_HANDLE, mVkGetInstanceProcAddr);
 }
 
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData)
+{
+	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+		|| (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT))
+	{
+		std::cerr << "VK Validation Layer: " << pCallbackData->pMessage << std::endl;
+	}
+	return VK_FALSE;
+}
+
 void rm_rapi_vk::createDebugger()
 {
-	
+	// If validation layers are enabled, create the debug messenger
+	if (enableValidationLayers)
+	{
+		if(!vkCreateDebugUtilsMessengerEXT)
+		{
+			std::cerr << "vkCreateDebugUtilsMessengerEXT not present!!" << std::endl;
+		}
+
+		VkDebugUtilsMessengerCreateInfoEXT vkDebugCreateInfo = {};
+		vkDebugCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+		vkDebugCreateInfo.pfnUserCallback = debugCallback;
+		vkDebugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+		vkDebugCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+			| VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+		vkDebugCreateInfo.pUserData = nullptr;
+
+		VkResult result = vkCreateDebugUtilsMessengerEXT(mInstance, &vkDebugCreateInfo, nullptr, &mDebugMessenger);
+		if (result != VK_SUCCESS)
+		{
+			throw std::runtime_error("Coult not create debug messenger!!");
+		}
+	}
 }
 
 void rm_rapi_vk::selectPhysicalDevice()
