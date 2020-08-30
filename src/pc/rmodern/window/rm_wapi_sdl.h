@@ -17,7 +17,7 @@ public:
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader();
     virtual VkSurfaceKHR getVulkanSurface(VkInstance instance);
     virtual void getVulkanResolution(VkExtent2D* extent);
-    virtual bool getVulkanRequiredExtensions(uint32_t* numExtensions, const char** extensionNames){};
+    virtual std::vector<const char*> getVulkanRequiredExtensions();
 
 private:
     bool tryLoadVulkan();

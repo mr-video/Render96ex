@@ -92,12 +92,13 @@ VkSurfaceKHR rm_wapi_sdl::getVulkanSurface(VkInstance instance)
     return surface;
 }
 
-bool rm_wapi_sdl::getVulkanRequiredExtensions(uint32_t* numExtensions, const char** extensionNames)
+std::vector<const char*> rm_wapi_sdl::getVulkanRequiredExtensions()
 {
-    unsigned int sdlNumExtensions;
-    SDL_bool result = SDL_Vulkan_GetInstanceExtensions(mWindow, &sdlNumExtensions, extensionNames);
-    *numExtensions = sdlNumExtensions;
-    return (result == SDL_TRUE) ? true : false;
+    unsigned int numExtensions = 0;
+    SDL_Vulkan_GetInstanceExtensions(mWindow, &numExtensions, nullptr);
+    std::vector<const char*> extensions(numExtensions);
+    SDL_Vulkan_GetInstanceExtensions(mWindow, &numExtensions, extensions.data());
+    return extensions;
 }
 
 void rm_wapi_sdl::getVulkanResolution(VkExtent2D* extent)

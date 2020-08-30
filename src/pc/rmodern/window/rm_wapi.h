@@ -2,6 +2,7 @@
 #define RM_WAPI_H
 
 #include <glad/vulkan.h>
+#include <vector>
 
 #define RM_WFLAG_VULKAN 1
 #define RM_WFLAG_OPENGL 2
@@ -25,9 +26,10 @@ public:
     {
         return VK_NULL_HANDLE;
     }
-    virtual bool getVulkanRequiredExtensions(uint32_t* numExtensions, const char** extensionNames)
+    virtual std::vector<const char*> getVulkanRequiredExtensions()
     {
-        return false;
+        std::vector<const char*> ret;
+        return ret;
     }
     virtual void getVulkanResolution(VkExtent2D* extent)
     {
