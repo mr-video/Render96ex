@@ -20,6 +20,7 @@ public:
     virtual void setWAPI(rm_wapi* wapi);
     virtual bool checkSupport();
     virtual bool init();
+    virtual void cleanup();
     virtual rm_mesh* createMesh();
     virtual uint32_t getRequiredWindowFlags();
 
@@ -40,9 +41,11 @@ private:
     void recreateSwapchain();
 	void cleanupSwapchain();
 
-    VkInstance mInstance = VK_NULL_HANDLE;
     PFN_vkGetInstanceProcAddr mVkGetInstanceProcAddr = nullptr;
     rm_wapi* mWAPI = nullptr;
+
+    VkInstance mInstance = VK_NULL_HANDLE;
+    
 };
 
 #endif
