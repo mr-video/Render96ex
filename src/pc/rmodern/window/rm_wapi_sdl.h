@@ -15,9 +15,15 @@ public:
     virtual bool handleEvents();
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader();
+    virtual VkSurfaceKHR getVulkanSurface(VkInstance instance);
+    virtual void getVulkanResolution(VkExtent2D* extent);
+    virtual bool getVulkanRequiredExtensions(uint32_t* numExtensions, const char** extensionNames){};
 
 private:
+    bool tryLoadVulkan();
+
     SDL_Window* mWindow = nullptr;
+    bool vulkanLoaded = false;
 };
 
 #endif

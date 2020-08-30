@@ -22,7 +22,10 @@ void rm_wapi_sdl::createWindow(uint32_t flags)
     // Convert RM window flags into SDL window flags
     uint32_t SDLFlags = 0;
     if(flags & RM_WFLAG_VULKAN)
+    {
+        tryLoadVulkan();
         SDLFlags |= SDL_WINDOW_VULKAN;
+    }
     if(flags & RM_WFLAG_OPENGL)
         SDLFlags |= SDL_WINDOW_OPENGL;
 
@@ -58,15 +61,49 @@ void rm_wapi_sdl::destroyWindow()
 
 void rm_wapi_sdl::cleanup()
 {
+    if(vulkanLoaded)
+        SDL_Vulkan_UnloadLibrary();
     SDL_Quit();
+}
+
+bool rm_wapi_sdl::tryLoadVulkan()
+{
+    if(vulkanLoaded)
+        return true;
+
+    return (SDL_Vulkan_LoadLibrary(nullptr) == 0);
 }
     
 PFN_vkGetInstanceProcAddr rm_wapi_sdl::getVulkanLoader()
 {
-    int result = SDL_Vulkan_LoadLibrary(NULL);
-
-    if(result != 0)
+    if(!tryLoadVulkan())
         return nullptr;
 
     return (PFN_vkGetInstanceProcAddr) SDL_Vulkan_GetVkGetInstanceProcAddr();
+}
+
+VkSurfaceKHR rm_wapi_sdl::getVulkanSurface(VkInstance instance)
+{
+    if(!tryLoadVulkan())
+        return VK_NULL_HANDLE;
+
+    VkSurfaceKHR surface;
+    SDL_Vulkan_CreateSurface(mWindow, instance, &surface);
+    return surface;
+}
+
+bool rm_wapi_sdl::getVulkanRequiredExtensions(uint32_t* numExtensions, const char** extensionNames)
+{
+    unsigned int sdlNumExtensions;
+    SDL_bool result = SDL_Vulkan_GetInstanceExtensions(mWindow, &sdlNumExtensions, extensionNames);
+    *numExtensions = sdlNumExtensions;
+    return (result == SDL_TRUE) ? true : false;
+}
+
+void rm_wapi_sdl::getVulkanResolution(VkExtent2D* extent)
+{
+    int w, h;
+    SDL_Vulkan_GetDrawableSize(mWindow, &w, &h);
+    extent->width = w;
+    extent->height = h;
 }

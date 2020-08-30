@@ -21,6 +21,18 @@ public:
     {
         return nullptr;
     }
+    virtual VkSurfaceKHR getVulkanSurface(VkInstance instance)
+    {
+        return VK_NULL_HANDLE;
+    }
+    virtual bool getVulkanRequiredExtensions(uint32_t* numExtensions, const char** extensionNames)
+    {
+        return false;
+    }
+    virtual void getVulkanResolution(VkExtent2D* extent)
+    {
+        return;
+    }
 };
 
 #endif
