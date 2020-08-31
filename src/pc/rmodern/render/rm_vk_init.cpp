@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <set>
+#include <algorithm>
 
 #include "../window/rm_wapi.h"
 #include "vk_helper.h"
@@ -90,9 +91,9 @@ bool rm_rapi_vk::init()
 void rm_rapi_vk::cleanup()
 {
     /*
-    vkDeviceWaitIdle(mDevice);
+    vkDeviceWaitIdle(mDevice);	//*/
 
-	cleanupSwapchain();
+	cleanupSwapchain();	/*
 
 	mMesh->cleanup();
 	mMesh2->cleanup();
@@ -111,6 +112,19 @@ void rm_rapi_vk::cleanup()
 	vkDestroyDevice(mDevice, nullptr);
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);	
 	vkDestroyInstance(mInstance, nullptr);
+}
+
+void rm_rapi_vk::cleanupSwapchain()
+{
+	/*
+	for (SwapImageVK swapImage : mSwapImages)
+		swapImage.cleanup();
+
+	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);	//*/
+
+	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 }
 
 void rm_rapi_vk::createVkInstance()
@@ -233,6 +247,9 @@ void rm_rapi_vk::selectPhysicalDevice()
 		throw std::runtime_error("Could not find a device with Vulkan support!!");
 
 	delete[] physicalDevices;
+
+	// Now let's load vulkan functions for our physical device
+	loadVulkan(mInstance, mPhysicalDevice, mVkGetInstanceProcAddr);
 }
 
 // Priorities for different device types
@@ -417,9 +434,116 @@ void rm_rapi_vk::createSurface()
 	mSurface = mWAPI->getVulkanSurface(mInstance);
 }
 
+VkSurfaceFormatKHR selectSurfaceFormat(VkSurfaceFormatKHR* formats, uint32_t numFormats)
+{
+	int bestRating = -1;
+	VkSurfaceFormatKHR bestFormat;
+
+	for (int i = 0; i < numFormats; i++)
+	{
+		int rating = 0;
+
+		if (formats[i].format == VK_FORMAT_B8G8R8A8_SRGB)
+			rating += 2;
+
+		if (formats[i].colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+			rating += 1;
+
+		if (rating > bestRating)
+			bestFormat = formats[i];
+	}
+
+	return bestFormat;
+}
+
+VkPresentModeKHR selectPresentMode(VkPresentModeKHR* modes, uint32_t numModes)
+{
+	// Try to use mailbox
+	for (uint32_t i=0; i<numModes; i++)
+		if (modes[i] == VK_PRESENT_MODE_MAILBOX_KHR)
+			return VK_PRESENT_MODE_MAILBOX_KHR;
+
+	// FIFO is guarunteed and acceptable
+	return VK_PRESENT_MODE_FIFO_KHR;
+}
+
+VkExtent2D selectSurfaceExtent(VkSurfaceCapabilitiesKHR& capabilities, rm_wapi* window)
+{
+	if (capabilities.currentExtent.width != UINT32_MAX)
+	{
+		return capabilities.currentExtent;
+	}
+	else
+	{
+		// Attempt to use the actual window resolution
+		VkExtent2D actualExtent;
+		window->getVulkanResolution(&actualExtent);
+
+		actualExtent.width = std::max(capabilities.minImageExtent.width, std::min(capabilities.maxImageExtent.width, actualExtent.width));
+		actualExtent.height = std::max(capabilities.minImageExtent.height, std::min(capabilities.maxImageExtent.height, actualExtent.height));
+
+		return actualExtent;
+	}
+}
+
 void rm_rapi_vk::createSwapchain()
 {
+	// First let's grab the support details
+	SwapchainSupportDetails supportDetails;
+	querySwapchainSupport(mPhysicalDevice, mSurface, &supportDetails);
+	VkSurfaceFormatKHR surfaceFormat = selectSurfaceFormat(supportDetails.formats.data(), supportDetails.formats.size());
+	VkPresentModeKHR presentMode = selectPresentMode(supportDetails.presentModes.data(), supportDetails.presentModes.size());
+	VkExtent2D surfaceExtent = selectSurfaceExtent(supportDetails.capabilities, mWAPI);
 
+	// How many images do we want?
+	uint32_t imageCount = supportDetails.capabilities.minImageCount + 1;
+	if (supportDetails.capabilities.maxImageCount > 0 && imageCount > supportDetails.capabilities.maxImageCount)
+		imageCount = supportDetails.capabilities.maxImageCount;
+
+	// Now let's make a swapchain
+	VkSwapchainCreateInfoKHR createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	createInfo.imageFormat = surfaceFormat.format;
+	createInfo.imageColorSpace = surfaceFormat.colorSpace;
+	createInfo.presentMode = presentMode;
+	createInfo.surface = mSurface;
+	createInfo.imageExtent = surfaceExtent;
+	createInfo.minImageCount = imageCount;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	createInfo.preTransform = supportDetails.capabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.clipped = VK_TRUE;
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	// Specify queue families
+	uint32_t queueFamilyIndices[] = { mGraphicsQueueFamily, mPresentQueueFamily };
+	if (mGraphicsQueueFamily == mPresentQueueFamily)
+	{
+		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		createInfo.pQueueFamilyIndices = nullptr;
+		createInfo.queueFamilyIndexCount = 0;
+	}
+	else
+	{
+		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		createInfo.pQueueFamilyIndices = queueFamilyIndices;
+		createInfo.queueFamilyIndexCount = 2;
+	}
+
+	// Cool now let's make a swapchain
+	if (vkCreateSwapchainKHR(mDevice, &createInfo, nullptr, &mSwapchain) != VK_SUCCESS)
+		throw std::runtime_error("Could not create swapchain!!");
+
+	// And grab its images
+	uint32_t numImages;
+	vkGetSwapchainImagesKHR(mDevice, mSwapchain, &numImages, nullptr);
+	mSwapchainImages.resize(numImages);
+	vkGetSwapchainImagesKHR(mDevice, mSwapchain, &numImages, mSwapchainImages.data());
+
+	// Finally, set private variables
+	mSwapchainExtent = surfaceExtent;
+	mSwapchainFormat = surfaceFormat.format;
 }
 
 void rm_rapi_vk::createRenderPass()
@@ -448,11 +572,6 @@ void rm_rapi_vk::createCommandPools()
 }
 
 void rm_rapi_vk::recreateSwapchain()
-{
-
-}
-
-void rm_rapi_vk::cleanupSwapchain()
 {
 
 }

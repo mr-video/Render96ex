@@ -3,6 +3,7 @@
 
 #include "rm_rapi.h"
 #include <glad/vulkan.h>
+#include <vector>
 
 class rm_mesh_vk : public rm_mesh
 {
@@ -56,6 +57,11 @@ private:
     uint32_t mGraphicsQueueFamily;
     VkQueue mGraphicsQueue;
     VkQueue mPresentQueue;
+
+    VkSwapchainKHR mSwapchain = VK_NULL_HANDLE;
+    std::vector<VkImage> mSwapchainImages;
+    VkExtent2D mSwapchainExtent;
+    VkFormat mSwapchainFormat;
 };
 
 #endif
