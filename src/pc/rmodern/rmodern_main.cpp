@@ -18,8 +18,15 @@ void rmodern_init()
     else
         std::cout << "Vulkan is not supported :(" << std::endl;
 
+    wapi->createWindow(rapi->getRequiredWindowFlags());
+    rapi->init();
+    
+    while(wapi->handleEvents())
+    {
+        ;
+    }
 
-
+    rapi->cleanup();
     wapi->destroyWindow();
     wapi->cleanup();
 }
