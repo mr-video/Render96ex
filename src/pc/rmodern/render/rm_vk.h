@@ -51,6 +51,11 @@ private:
     VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
     VkDevice mDevice = VK_NULL_HANDLE;
     VkSurfaceKHR mSurface;
+
+    uint32_t mPresentQueueFamily;
+    uint32_t mGraphicsQueueFamily;
+    VkQueue mGraphicsQueue;
+    VkQueue mPresentQueue;
 };
 
 #endif

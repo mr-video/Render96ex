@@ -108,8 +108,8 @@ void rm_rapi_vk::cleanup()
 	vkDestroyCommandPool(mDevice, mResettableCommandPool, nullptr);
 	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);	//*/
 	
+	vkDestroyDevice(mDevice, nullptr);
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);	
-	//vkDestroyDevice(mDevice, nullptr);
 	vkDestroyInstance(mInstance, nullptr);
 }
 
@@ -331,7 +331,85 @@ int rm_rapi_vk::rateDeviceSuitability(VkPhysicalDevice device)
 
 void rm_rapi_vk::createLogicalDevice()
 {
+	// First let's grab some queue families
+	uint32_t graphicsQueueFamily;
+	uint32_t presentQueueFamily;
+	bool foundGraphicsQueueFamily = false;
+	bool foundPresentQueueFamily = false;
+	uint32_t numQueueFamilies;
+	vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &numQueueFamilies, nullptr);
+	VkQueueFamilyProperties* queueFamilyProperties = new VkQueueFamilyProperties[numQueueFamilies];
+	vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &numQueueFamilies, queueFamilyProperties);
 
+	for (uint32_t i = 0; i < numQueueFamilies; i++)
+	{
+		if (queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+		{
+			graphicsQueueFamily = i;
+			foundGraphicsQueueFamily = true;
+		}
+
+		VkBool32 presentSupport = VK_FALSE;
+		vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, i, mSurface, &presentSupport);
+		if (presentSupport)
+		{
+			presentQueueFamily = i;
+			foundPresentQueueFamily = true;
+		}
+	}
+	delete[] queueFamilyProperties;
+
+	if (!foundPresentQueueFamily || !foundGraphicsQueueFamily)
+		throw std::runtime_error("Could not find needed queue families!!");
+
+	mPresentQueueFamily = presentQueueFamily;
+	mGraphicsQueueFamily = graphicsQueueFamily;
+
+	// Now let's specify a graphics queue and a presentation queue
+	VkDeviceQueueCreateInfo graphicsQueueCreateInfo = {};
+	float queuePriority = 1.0f;
+	graphicsQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	graphicsQueueCreateInfo.queueFamilyIndex = graphicsQueueFamily;
+	graphicsQueueCreateInfo.queueCount = 1;
+	graphicsQueueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkDeviceQueueCreateInfo presentQueueCreateInfo = {};
+	presentQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+	presentQueueCreateInfo.queueFamilyIndex = presentQueueFamily;
+	presentQueueCreateInfo.queueCount = 1;
+	presentQueueCreateInfo.pQueuePriorities = &queuePriority;
+
+	VkDeviceQueueCreateInfo queueCreateInfos[] = {
+		graphicsQueueCreateInfo,
+		presentQueueCreateInfo
+	};
+
+	// Specify needed physical device features
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+
+	// Create the logical device
+	VkDeviceCreateInfo deviceCreateInfo = {};
+	deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	deviceCreateInfo.pEnabledFeatures = &deviceFeatures;
+	deviceCreateInfo.pQueueCreateInfos = queueCreateInfos;
+	deviceCreateInfo.queueCreateInfoCount = (graphicsQueueFamily == presentQueueFamily) ? 1 : 2;
+	deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+	deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
+
+	if (enableValidationLayers)
+	{
+		deviceCreateInfo.enabledLayerCount = validationLayerNames.size();
+		deviceCreateInfo.ppEnabledLayerNames = validationLayerNames.data();
+	}
+	else
+		deviceCreateInfo.enabledLayerCount = 0;
+
+	if (vkCreateDevice(mPhysicalDevice, &deviceCreateInfo, nullptr, &mDevice) != VK_SUCCESS)
+		throw std::runtime_error("Could not create logical device!!");
+
+	// Now let's obtain the queues
+	vkGetDeviceQueue(mDevice, graphicsQueueFamily, 0, &mGraphicsQueue);
+	vkGetDeviceQueue(mDevice, presentQueueFamily, 0, &mPresentQueue);
 }
 
 void rm_rapi_vk::createSurface()
