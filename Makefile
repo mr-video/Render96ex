@@ -1003,6 +1003,31 @@ $(EXE): $(O_FILES) $(MIO0_FILES:.mio0=.o) $(SOUND_OBJ_FILES) $(ULTRA_O_FILES) $(
 .PRECIOUS: $(BUILD_DIR)/bin/%.elf $(SOUND_BIN_DIR)/%.ctl $(SOUND_BIN_DIR)/%.tbl $(SOUND_SAMPLE_TABLES) $(SOUND_BIN_DIR)/%.s $(BUILD_DIR)/%
 .DELETE_ON_ERROR:
 
+# Shader Compilation
+
+SHADER_SRC_DIRS := shaders
+SHADER_BIN_DIR := $(BUILD_DIR)/shaders
+
+VERTEX_SHADER_SRC := $(foreach dir,$(SHADER_SRC_DIRS),$(wildcard $(dir)/*.vert))
+FRAGMENT_SHADER_SRC := $(foreach dir,$(SHADER_SRC_DIRS),$(wildcard $(dir)/*.frag))
+
+VERTEX_SHADER_SPV := $(foreach file,$(VERTEX_SHADER_SRC),$(BUILD_DIR)/$(file:.vert=_vert.spv))
+FRAGMENT_SHADER_SPV := $(foreach file,$(FRAGMENT_SHADER_SRC),$(BUILD_DIR)/$(file:.frag=_frag.spv))
+
+$(BUILD_DIR)/shaders:
+	mkdir -p $(BUILD_DIR)/shaders
+
+$(BUILD_DIR)/%_vert.spv: %.vert $(BUILD_DIR)/shaders
+	glslangvalidator $< -V -o $@
+
+$(BUILD_DIR)/%_frag.spv: %.frag $(BUILD_DIR)/shaders
+	glslangvalidator $< -V -o $@
+
+ifeq ($(RMODERN), 1)
+  all: $(VERTEX_SHADER_SPV) $(FRAGMENT_SHADER_SPV)
+endif
+
+
 # Remove built-in rules, to improve performance
 MAKEFLAGS += --no-builtin-rules
 
