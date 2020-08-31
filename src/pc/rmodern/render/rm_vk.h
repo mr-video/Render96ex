@@ -41,11 +41,16 @@ private:
     void recreateSwapchain();
 	void cleanupSwapchain();
 
+    int rateDeviceSuitability(VkPhysicalDevice device);
+
     PFN_vkGetInstanceProcAddr mVkGetInstanceProcAddr = nullptr;
     rm_wapi* mWAPI = nullptr;
 
     VkInstance mInstance = VK_NULL_HANDLE;
-    VkDebugUtilsMessengerEXT mDebugMessenger;
+    VkDebugUtilsMessengerEXT mDebugMessenger = VK_NULL_HANDLE;
+    VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
+    VkDevice mDevice = VK_NULL_HANDLE;
+    VkSurfaceKHR mSurface;
 };
 
 #endif
