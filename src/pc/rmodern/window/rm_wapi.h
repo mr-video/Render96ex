@@ -16,6 +16,12 @@ public:
     virtual void createWindow(uint32_t flags) = 0;
     virtual void destroyWindow() = 0;
     virtual void cleanup() = 0;
+    /**
+     * @brief Handles all events that were received by the window.
+     * 
+     * @return true the window should remain open
+     * @return false the window should close
+     */
     virtual bool handleEvents() = 0;
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader()
