@@ -6,6 +6,7 @@
 #include <iostream>
 #include <set>
 #include <algorithm>
+#include <fstream>
 
 #include "../window/rm_wapi.h"
 #include "vk_helper.h"
@@ -29,6 +30,37 @@ struct SwapchainSupportDetails {
 	std::vector<VkSurfaceFormatKHR> formats;
 	std::vector<VkPresentModeKHR> presentModes;
 };
+
+static std::vector<char> readFile(const std::string& filename);
+
+// VERTEX HELPER FUNCITONS
+
+static VkVertexInputBindingDescription getVertexBindingDescription()
+{
+    VkVertexInputBindingDescription bindingDescription = {};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(rm_vtx);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+}
+
+static void getVertexAttributeDescriptions(uint32_t* numAttribs, VkVertexInputAttributeDescription** descriptions)
+{
+    *numAttribs = 2;
+    *descriptions = new VkVertexInputAttributeDescription[2];
+    (*descriptions)[0].binding = 0;
+    (*descriptions)[0].location = 0;
+    (*descriptions)[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    (*descriptions)[0].offset = offsetof(rm_vtx, rm_vtx::pos);
+
+    (*descriptions)[1].binding = 0;
+    (*descriptions)[1].location = 1;
+    (*descriptions)[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    (*descriptions)[1].offset = offsetof(rm_vtx, rm_vtx::color);
+}
+
+// OTHER THINGS
 
 void rm_rapi_vk::setWAPI(rm_wapi* wapi)
 {
@@ -118,11 +150,11 @@ void rm_rapi_vk::cleanupSwapchain()
 {
 	/*
 	for (SwapImageVK swapImage : mSwapImages)
-		swapImage.cleanup();
+		swapImage.cleanup();	//*/
 
 	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);	//*/
-	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);	//*/
+	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+	vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 
 	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 }
@@ -600,7 +632,144 @@ void rm_rapi_vk::createSwapImages()
 
 void rm_rapi_vk::createGraphicsPipeline()
 {
+    // Load and create shader modules
+    auto vertShader = readFile("shaders/test_vert.spv");
+    auto fragShader = readFile("shaders/test_frag.spv");
+    VkShaderModule vertShaderModule = createShaderModule(vertShader);
+    VkShaderModule fragShaderModule = createShaderModule(fragShader);
 
+    // Let's create some shader stages
+    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.module = vertShaderModule;
+    vertShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    fragShaderStageInfo.module = fragShaderModule;
+    fragShaderStageInfo.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+    // Specify the vertex input...
+    uint32_t numVertexAttribs;
+    VkVertexInputAttributeDescription* attribDescriptions;
+    getVertexAttributeDescriptions(&numVertexAttribs, &attribDescriptions);
+    VkVertexInputBindingDescription bindingDescription = getVertexBindingDescription();
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.pVertexAttributeDescriptions = attribDescriptions;
+    vertexInputInfo.vertexAttributeDescriptionCount = numVertexAttribs;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+
+    // Specify the geometry type
+    VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = {};
+    inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+    // Viewport & scissor, so we can see the whole screen
+    VkViewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = mSwapchainExtent.width;
+    viewport.height = mSwapchainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor{};
+    scissor.offset = { 0, 0 };
+    scissor.extent = mSwapchainExtent;
+
+    VkPipelineViewportStateCreateInfo viewportInfo = {};
+    viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportInfo.pViewports = &viewport;
+    viewportInfo.viewportCount = 1;
+    viewportInfo.pScissors = &scissor;
+    viewportInfo.scissorCount = 1;
+
+    // The rasterizer rasterizes pixels, and I appreciate that
+    VkPipelineRasterizationStateCreateInfo rasterizer = {};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;         // discard near or far fragments
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;  // don't discard all fragments
+    rasterizer.depthBiasEnable = VK_FALSE;          // leave the depth as it is, thanks :)
+    rasterizer.cullMode = VK_CULL_MODE_NONE;//VK_CULL_MODE_BACK_BIT;    // backface culling
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+
+    // Multisampling is epic
+    VkPipelineMultisampleStateCreateInfo multisample = {};
+    multisample.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisample.sampleShadingEnable = VK_FALSE;
+    multisample.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    multisample.minSampleShading = 1.0f; // Optional
+    multisample.pSampleMask = nullptr; // Optional
+    multisample.alphaToCoverageEnable = VK_FALSE; // Optional
+    multisample.alphaToOneEnable = VK_FALSE; // Optional
+
+    // Specify color blending (we don't blend)
+    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD; // Optional
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO; // Optional
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD; // Optional
+
+    VkPipelineColorBlendStateCreateInfo colorBlending = {};
+    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+
+    // We could specify dynamic state here, but we won't
+    // We would use a VkPipelineDynamicStateCreateInfo
+
+    // Now to lay out the pipeline!!
+    VkPipelineLayoutCreateInfo  pipelineLayoutInfo = {};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pSetLayouts = nullptr;
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
+
+    if (vkCreatePipelineLayout(mDevice, &pipelineLayoutInfo, nullptr, &mPipelineLayout) != VK_SUCCESS)
+        throw std::runtime_error("Could not create pipeline layout!!");
+
+    // Finally, pipeline creation
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+    pipelineInfo.pViewportState = &viewportInfo;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisample;
+    pipelineInfo.pDepthStencilState = nullptr; // Optional
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = nullptr; // Optional
+    pipelineInfo.layout = mPipelineLayout;
+    pipelineInfo.renderPass = mRenderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
+    pipelineInfo.basePipelineIndex = -1; // Optional
+
+    if (vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &mGraphicsPipeline) != VK_SUCCESS)
+        throw std::runtime_error("Could not create graphics pipeline!!");
+
+    // Cleanup
+    delete[] attribDescriptions;
+    vkDestroyShaderModule(mDevice, fragShaderModule, nullptr);
+    vkDestroyShaderModule(mDevice, vertShaderModule, nullptr);
 }
 
 void rm_rapi_vk::createCommandPools()
@@ -611,4 +780,36 @@ void rm_rapi_vk::createCommandPools()
 void rm_rapi_vk::recreateSwapchain()
 {
 
+}
+
+VkShaderModule rm_rapi_vk::createShaderModule(const std::vector<char>& code)
+{
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    createInfo.codeSize = code.size();
+
+    VkShaderModule ret;
+
+    if (vkCreateShaderModule(mDevice, &createInfo, nullptr, &ret) != VK_SUCCESS)
+        throw std::runtime_error("Could not create shader module!!");
+
+    return ret;
+}
+
+static std::vector<char> readFile(const std::string& filename)
+{
+    std::ifstream infile(filename, std::ios::ate | std::ios::binary);
+
+    if (!infile.is_open())
+        throw std::runtime_error("failed to open file!");
+
+    size_t fileSize = infile.tellg();
+    std::vector<char> ret(fileSize);
+    infile.seekg(0);
+    infile.read(ret.data(), fileSize);
+
+    infile.close();
+
+    return ret;
 }

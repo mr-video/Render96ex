@@ -2,8 +2,15 @@
 #define RM_RAPI_H
 
 #include "engine/graph_node.h"
+#include "types.h"
 
 class rm_wapi;
+
+struct rm_vtx
+{
+    Vec3f pos;
+    Vec3f color;
+};
 
 class rm_mesh
 {

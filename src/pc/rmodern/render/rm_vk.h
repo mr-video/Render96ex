@@ -43,6 +43,7 @@ private:
 	void cleanupSwapchain();
 
     int rateDeviceSuitability(VkPhysicalDevice device);
+    VkShaderModule createShaderModule(const std::vector<char>& code);
 
     PFN_vkGetInstanceProcAddr mVkGetInstanceProcAddr = nullptr;
     rm_wapi* mWAPI = nullptr;
@@ -64,6 +65,9 @@ private:
     VkFormat mSwapchainFormat;
 
     VkRenderPass mRenderPass;
+
+    VkPipelineLayout mPipelineLayout;
+    VkPipeline mGraphicsPipeline;
 };
 
 #endif
