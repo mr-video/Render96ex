@@ -158,6 +158,27 @@ void rm_rapi_vk::cleanupSwapchain()
 	vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 }
 
+void rm_rapi_vk::recreateSwapchain()
+{
+	VkExtent2D resolution;
+	mWAPI->getVulkanResolution(&resolution);
+
+	while (resolution.width == 0 || resolution.height == 0)
+	{
+		mWAPI->getVulkanResolution(&resolution);
+		mWAPI->waitUntilActive();
+	}
+
+	vkDeviceWaitIdle(mDevice);
+
+	cleanupSwapchain();
+
+	createSwapchain();
+	createRenderPass();
+	createGraphicsPipeline();
+	createSwapImages();
+}
+
 void rm_rapi_vk::createVkInstance()
 {
     // get required extensions for the window
@@ -810,11 +831,6 @@ void rm_rapi_vk::createCommandPools()
 
     if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mResettableCommandPool) != VK_SUCCESS)
         throw std::runtime_error("Could not create resettable command pool!!");
-}
-
-void rm_rapi_vk::recreateSwapchain()
-{
-
 }
 
 VkShaderModule rm_rapi_vk::createShaderModule(const std::vector<char>& code)
