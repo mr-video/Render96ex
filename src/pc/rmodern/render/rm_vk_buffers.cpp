@@ -26,6 +26,7 @@ void rm_rapi_vk::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
     bufferInfo.size = size;
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferInfo.pNext = nullptr;
 
     if (vkCreateBuffer(mDevice, &bufferInfo, nullptr, buffer) != VK_SUCCESS)
         throw std::runtime_error("Could not create buffer!!");

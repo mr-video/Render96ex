@@ -20,6 +20,6 @@ vec3 colors[3] = vec3[](
 );  //*/
 
 void main() {
-    gl_Position = vec4(vertPosition, 1.0);
+    gl_Position = vec4(vertPosition / 256.0, 1.0);
     fragColor = vertColor;
 }

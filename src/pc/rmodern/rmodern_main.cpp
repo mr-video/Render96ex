@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include <PR/gbi.h>
-#include "../../../actors/common0.h"
+#include "../../../actors/common1.h"
 
 void rmodern_init()
 {
@@ -25,7 +25,7 @@ void rmodern_init()
     rapi->init();
 
     rm_mesh* mesh = rapi->createMesh();
-    mesh->preloadFromDL(flyguy_seg8_dl_08011420);
+    mesh->preloadFromDL(star_seg3_dl_0302B7B0);
     
     while(wapi->handleEvents())
     {

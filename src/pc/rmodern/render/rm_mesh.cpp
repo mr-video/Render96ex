@@ -21,7 +21,7 @@ void* getGfxPtr(const Gfx& gfx)
 
 uint16_t getGfxLength(const Gfx& gfx)
 {
-	return (gfx.words.w0) & 0x0000FFFF;
+	return (gfx.words.w0 >> 12) & 0x00FF;
 }
 
 uint8_t getGfxParam(const Gfx& gfx)
@@ -29,7 +29,13 @@ uint8_t getGfxParam(const Gfx& gfx)
 	return (gfx.words.w0 >> 16) & 0xFF;
 }
 
-const uint8_t* getGfxVertices(const Gfx& gfx)
+const uint8_t* getGfxVertices0(const Gfx& gfx)
+{
+	uint8_t* ptr = (uint8_t*)&(gfx.words.w0);
+	return &ptr[0];
+}
+
+const uint8_t* getGfxVertices1(const Gfx& gfx)
 {
 	uint8_t* ptr = (uint8_t*)&(gfx.words.w1);
 	return &ptr[0];
@@ -52,11 +58,16 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 		case G_MOVEMEM:
 			break;
 		case G_VTX:
-			numVertices += getGfxLength(displayList[i]) / sizeof(Vtx);	// number of vertices
+			numVertices += getGfxLength(displayList[i]);	// number of vertices
 			break;
 		case G_TRI1:
 			numIndices += 3;
 			break;
+	#ifdef G_TRI2
+		case G_TRI2:
+			numIndices += 6;
+			break;
+	#endif
 		default:
 			break;
 		}
@@ -88,8 +99,9 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 		case G_VTX:
 			{
 				Vtx* vtx = (Vtx*)getGfxPtr(displayList[i]);						// vertex data source
-				uint16_t numNewVertices = getGfxLength(displayList[i]) / sizeof(Vtx);	// number of vertices
-				uint8_t nStart = getGfxParam(displayList[i]) & 0x0F;				// start position in vertex buffer
+				uint16_t numNewVertices = getGfxLength(displayList[i]);			// number of vertices
+				size_t nStart = (displayList[i].words.w0 >> 1) & 0x3F;				// start position in vertex buffer
+				nStart -= (displayList[i].words.w0 >> 12) & 0xFF;
 																					// TODO: make sure this is right
 				uint32_t mapPos = nextVertex;										// start position in map
 				uint32_t initMapPos = mapPos;
@@ -108,19 +120,38 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 		case G_TRI1:
 			{
 				// load this triangle's vertex data
-				const uint8_t* cVertices = getGfxVertices(displayList[i]);
+				const uint8_t* cVertices = getGfxVertices1(displayList[i]);
 
 				// map the indices and push them onto the index vector
 				uint32_t mappedIndices[3];
 				for (size_t i = 0; i < 3; i++)
-					mappedIndices[i] = dlVertexMap[cVertices[2 - i]/10];
+					mappedIndices[i] = dlVertexMap[cVertices[2 - i]/2];
 
 				// push new indices
 				memcpy(&indices[nextIndex], mappedIndices, sizeof(uint32_t) * 3);
 				nextIndex += 3;
-				//indices.insert(indices.end(), mappedIndices, &mappedIndices[3]);
 			}
 			break;
+	#ifdef G_TRI2
+		case G_TRI2:
+			{
+				// load this triangle's vertex data
+				const uint8_t* cVertices0 = getGfxVertices0(displayList[i]);
+				const uint8_t* cVertices1 = getGfxVertices1(displayList[i]);
+
+				// map the indices and push them onto the index vector
+				uint32_t mappedIndices[6];
+				for (size_t i = 0; i < 3; i++)
+					mappedIndices[i] = dlVertexMap[cVertices0[2 - i]/2];
+				for (size_t i = 3; i < 6; i++)
+					mappedIndices[i] = dlVertexMap[cVertices1[2 - (i - 3)]/2];
+
+				// push new indices
+				memcpy(&indices[nextIndex], mappedIndices, sizeof(uint32_t) * 6);
+				nextIndex += 6;
+			}
+			break;
+	#endif
 		default:
 			break;
 		}
