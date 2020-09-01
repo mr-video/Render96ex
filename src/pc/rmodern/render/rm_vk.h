@@ -10,7 +10,7 @@ class rm_rapi_vk;
 class rm_mesh_vk : public rm_mesh
 {
 public:
-    virtual void preload();
+    virtual void preload(std::vector<rm_vtx> vertices, std::vector<uint32_t> indices);
     virtual void activate();
     virtual void deactivate();
     virtual void cleanup();
