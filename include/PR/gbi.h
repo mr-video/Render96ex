@@ -87,6 +87,18 @@
  *
  */
 
+#ifndef __ASSEMBLER__
+# ifdef __cplusplus
+#  ifndef _LANGUAGE_C_PLUS_PLUS
+#   define _LANGUAGE_C_PLUS_PLUS
+#  endif
+# else
+#  ifndef _LANGUAGE_C
+#   define _LANGUAGE_C
+#  endif
+# endif
+#endif
+
 #ifdef F3DEX_GBI_2E
 # ifndef F3DEX_GBI_2
 #  define F3DEX_GBI_2
