@@ -23,6 +23,7 @@ public:
      * @return false the window should close
      */
     virtual bool handleEvents() = 0;
+    virtual void waitUntilActive() = 0;
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader()
     {

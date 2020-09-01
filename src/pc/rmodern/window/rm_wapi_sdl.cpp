@@ -48,6 +48,12 @@ bool rm_wapi_sdl::handleEvents()
 
     return true;
 }
+
+void rm_wapi_sdl::waitUntilActive()
+{
+    SDL_Event event;
+    SDL_WaitEvent(&event);
+}
  
 void rm_wapi_sdl::destroyWindow()
 {

@@ -13,6 +13,7 @@ public:
     virtual void destroyWindow();
     virtual void cleanup();
     virtual bool handleEvents();
+    virtual void waitUntilActive();
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader();
     virtual VkSurfaceKHR getVulkanSurface(VkInstance instance);
