@@ -62,6 +62,8 @@ private:
     std::vector<VkImage> mSwapchainImages;
     VkExtent2D mSwapchainExtent;
     VkFormat mSwapchainFormat;
+
+    VkRenderPass mRenderPass;
 };
 
 #endif
