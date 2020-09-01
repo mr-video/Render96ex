@@ -148,9 +148,8 @@ void rm_rapi_vk::cleanup()
 
 void rm_rapi_vk::cleanupSwapchain()
 {
-	/*
-	for (SwapImageVK swapImage : mSwapImages)
-		swapImage.cleanup();	//*/
+	for (rm_vk_swapimage swapImage : mSwapImages)
+		swapImage.cleanup();
 
 	vkDestroyPipeline(mDevice, mGraphicsPipeline, nullptr);
 	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
@@ -633,7 +632,13 @@ void rm_rapi_vk::createFrames()
 
 void rm_rapi_vk::createSwapImages()
 {
+    mSwapImages.resize(mSwapchainImages.size());
 
+    for (size_t i = 0; i < mSwapImages.size(); i++)
+    {
+        mSwapImages[i].init(this);
+        mSwapImages[i].createSwapImage(mSwapchainImages[i], mSwapchainFormat, mRenderPass, mSwapchainExtent);
+    }
 }
 
 void rm_rapi_vk::createGraphicsPipeline()

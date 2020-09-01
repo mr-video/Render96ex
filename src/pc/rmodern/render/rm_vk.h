@@ -45,9 +45,39 @@ private:
 	bool initialized = false;
 };
 
+class rm_vk_swapimage
+{
+public:
+	void createSwapImage(VkImage image, VkFormat format, VkRenderPass renderPass, VkExtent2D extent);
+	void waitInFlight();
+	void setCurrentFrame(rm_vk_frame* frame);
+	void beginRenderPass(VkCommandBuffer commandBuffer);
+	void endRenderPass(VkCommandBuffer commandBuffer);
+	void cleanup();
+
+	void init(rm_rapi_vk* renderAPI);
+	void deInit();
+
+private:
+	VkFramebuffer mFramebuffer;
+	VkImage mImage;
+	VkImageView mImageView;
+
+	VkRenderPass mRenderPass;
+	VkExtent2D mExtent;
+
+	rm_vk_frame* mCurrentFrame = nullptr;
+
+	VkCommandPool mCommandPool;
+	VkDevice mDevice;
+	bool initialized = false;
+};
+
 class rm_rapi_vk : public rm_rapi
 {
     friend class rm_vk_frame;
+    friend class rm_vk_swapimage;
+    friend class rm_mesh_vk;
 
 public:
     virtual void setWAPI(rm_wapi* wapi);
@@ -106,6 +136,7 @@ private:
     VkCommandPool mResettableCommandPool = VK_NULL_HANDLE;
 
     std::vector<rm_vk_frame> mFrames;
+    std::vector<rm_vk_swapimage> mSwapImages;
 };
 
 #endif
