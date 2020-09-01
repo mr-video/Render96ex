@@ -5,6 +5,8 @@
 #include <glad/vulkan.h>
 #include <vector>
 
+class rm_rapi_vk;
+
 class rm_mesh_vk : public rm_mesh
 {
 public:
@@ -15,8 +17,38 @@ public:
     virtual void render();
 };
 
+class rm_vk_frame
+{
+public:
+	void createFrame();
+	void waitInFlight();
+	VkResult getNextImage(VkSwapchainKHR swapchain, uint32_t* imageIndex);
+	VkCommandBuffer beginCommands();
+	void submit(VkQueue queue);
+	VkResult present(VkQueue presentQueue, uint32_t imageIndex, VkSwapchainKHR swapchain);
+	void cleanup();
+
+	void init(rm_rapi_vk* renderAPI);
+	void deInit();
+
+private:
+	VkFence mFenceInFlight;
+	VkSemaphore mSemaphoreImageAvailable;
+	VkSemaphore mSemaphoreRenderFinished;
+
+	VkPipelineStageFlags mRenderWaitFlags;
+
+	VkCommandBuffer mCommandBuffer = VK_NULL_HANDLE;
+	VkCommandPool mCommandPool = VK_NULL_HANDLE;
+
+	VkDevice mDevice;
+	bool initialized = false;
+};
+
 class rm_rapi_vk : public rm_rapi
 {
+    friend class rm_vk_frame;
+
 public:
     virtual void setWAPI(rm_wapi* wapi);
     virtual bool checkSupport();
@@ -68,6 +100,12 @@ private:
 
     VkPipelineLayout mPipelineLayout;
     VkPipeline mGraphicsPipeline;
+
+    VkCommandPool mLongtermCommandPool = VK_NULL_HANDLE;
+    VkCommandPool mTransientCommandPool = VK_NULL_HANDLE;
+    VkCommandPool mResettableCommandPool = VK_NULL_HANDLE;
+
+    std::vector<rm_vk_frame> mFrames;
 };
 
 #endif

@@ -17,6 +17,8 @@ const bool enableValidationLayers = true;
 const bool enableValidationLayers = false;
 #endif
 
+const int MAX_FRAMES_IN_FLIGHT = 2;
+
 std::vector<const char*> validationLayerNames = {
 	"VK_LAYER_KHRONOS_validation"
 };
@@ -122,24 +124,22 @@ bool rm_rapi_vk::init()
 
 void rm_rapi_vk::cleanup()
 {
-    /*
-    vkDeviceWaitIdle(mDevice);	//*/
+    vkDeviceWaitIdle(mDevice);
 
-	cleanupSwapchain();	/*
+	cleanupSwapchain();
 
-	mMesh->cleanup();
-	mMesh2->cleanup();
+	//mMesh->cleanup();
+	//mMesh2->cleanup();
 
-	//*/
 	if (enableValidationLayers)
-		vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);	/*
+		vkDestroyDebugUtilsMessengerEXT(mInstance, mDebugMessenger, nullptr);
 
-	for (FrameVK frame : mFrames)
+	for (rm_vk_frame frame : mFrames)
 		frame.cleanup();
 
 	vkDestroyCommandPool(mDevice, mTransientCommandPool, nullptr);
 	vkDestroyCommandPool(mDevice, mResettableCommandPool, nullptr);
-	vkDestroyCommandPool(mDevice, mCommandPool, nullptr);	//*/
+	vkDestroyCommandPool(mDevice, mLongtermCommandPool, nullptr);
 	
 	vkDestroyDevice(mDevice, nullptr);
 	vkDestroySurfaceKHR(mInstance, mSurface, nullptr);	
@@ -622,7 +622,13 @@ void rm_rapi_vk::createRenderPass()
 
 void rm_rapi_vk::createFrames()
 {
+    mFrames.resize(MAX_FRAMES_IN_FLIGHT);
 
+    for (size_t i = 0; i < mFrames.size(); i++)
+    {
+        mFrames[i].init(this);
+        mFrames[i].createFrame();
+    }
 }
 
 void rm_rapi_vk::createSwapImages()
@@ -774,7 +780,31 @@ void rm_rapi_vk::createGraphicsPipeline()
 
 void rm_rapi_vk::createCommandPools()
 {
+    VkCommandPoolCreateInfo createInfo = {};
 
+    // Create long-term command pool
+    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.queueFamilyIndex = mGraphicsQueueFamily;
+    createInfo.flags = 0;   // VK_COMMAND_POOL_CREATE_TRANSIENT_BIT
+                            // VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+
+    if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mLongtermCommandPool) != VK_SUCCESS)
+        throw std::runtime_error("Could not create command pool!!");
+
+    // Create transient command pool
+    createInfo.queueFamilyIndex = mGraphicsQueueFamily;
+    createInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+                            // VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
+
+    if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mTransientCommandPool) != VK_SUCCESS)
+        throw std::runtime_error("Could not create transient command pool!!");
+
+    // Create resettable command pool
+    createInfo.queueFamilyIndex = mGraphicsQueueFamily;
+    createInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+
+    if (vkCreateCommandPool(mDevice, &createInfo, nullptr, &mResettableCommandPool) != VK_SUCCESS)
+        throw std::runtime_error("Could not create resettable command pool!!");
 }
 
 void rm_rapi_vk::recreateSwapchain()
