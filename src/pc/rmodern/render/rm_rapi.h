@@ -45,6 +45,8 @@ public:
     virtual void cleanup() = 0;
     virtual rm_mesh* createMesh() = 0;
     virtual uint32_t getRequiredWindowFlags() = 0;
+    virtual void beginFrame() = 0;
+    virtual void completeFrame() = 0;
 };
 
 #endif

@@ -2,10 +2,13 @@
 #define RM_VK_H
 
 #include "rm_rapi.h"
+#include "../window/rm_wapi.h"
 #include <glad/vulkan.h>
 #include <vector>
 
 class rm_rapi_vk;
+
+extern const int MAX_FRAMES_IN_FLIGHT;
 
 class rm_mesh_vk : public rm_mesh
 {
@@ -15,6 +18,21 @@ public:
     virtual void deactivate();
     virtual void cleanup();
     virtual void render();
+
+	void init(rm_rapi_vk* rapi);
+
+private:
+	uint32_t mNumVertices;
+	uint32_t mNumIndices;
+
+	bool initialized;
+	rm_rapi_vk* mRAPI;
+	VkDevice mDevice = VK_NULL_HANDLE;
+
+	VkBuffer mVertexBuffer = VK_NULL_HANDLE;
+	VkBuffer mIndexBuffer = VK_NULL_HANDLE;
+	VkDeviceMemory mVertexBufferMemory = VK_NULL_HANDLE;
+	VkDeviceMemory mIndexBufferMemory = VK_NULL_HANDLE;
 };
 
 class rm_vk_frame
@@ -78,6 +96,7 @@ class rm_rapi_vk : public rm_rapi
     friend class rm_vk_frame;
     friend class rm_vk_swapimage;
     friend class rm_mesh_vk;
+	friend GLADapiproc vkLoadFunc(const char *name);
 
 public:
     virtual void setWAPI(rm_wapi* wapi);
@@ -86,8 +105,13 @@ public:
     virtual void cleanup();
     virtual rm_mesh* createMesh();
     virtual uint32_t getRequiredWindowFlags();
+	virtual void beginFrame();
+	virtual void completeFrame();
 
-    friend GLADapiproc vkLoadFunc(const char *name);
+	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+    					VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* memory);
+	void copyBuffer(VkDeviceSize size, VkBuffer src, VkBuffer dst);
+	VkCommandBuffer getRenderCommandBuffer();
 
 private:
     void createVkInstance();
@@ -103,6 +127,8 @@ private:
 	void createCommandPools();
     void recreateSwapchain();
 	void cleanupSwapchain();
+
+	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     int rateDeviceSuitability(VkPhysicalDevice device);
     VkShaderModule createShaderModule(const std::vector<char>& code);
@@ -137,6 +163,12 @@ private:
 
     std::vector<rm_vk_frame> mFrames;
     std::vector<rm_vk_swapimage> mSwapImages;
+	size_t currentFrame = 0;
+
+	// Variables used in the process of rendering a frame
+	VkResult mSwapchainResult;
+	uint32_t mImageIndex;
+	VkCommandBuffer mRenderCommandBuffer;
 };
 
 #endif
