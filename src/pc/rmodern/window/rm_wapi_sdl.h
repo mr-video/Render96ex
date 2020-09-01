@@ -14,6 +14,7 @@ public:
     virtual void cleanup();
     virtual bool handleEvents();
     virtual void waitUntilActive();
+    virtual bool wasWindowResized(bool reset);
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader();
     virtual VkSurfaceKHR getVulkanSurface(VkInstance instance);
@@ -25,6 +26,7 @@ private:
 
     SDL_Window* mWindow = nullptr;
     bool vulkanLoaded = false;
+    bool wasResized = false;
 };
 
 #endif

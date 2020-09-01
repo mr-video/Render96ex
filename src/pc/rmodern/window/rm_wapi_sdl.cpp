@@ -43,6 +43,9 @@ bool rm_wapi_sdl::handleEvents()
         case SDL_QUIT:
             return false;
             break;
+        case SDL_WINDOWEVENT_RESIZED:
+            wasResized = true;
+            break;
         }
     }
 
@@ -53,6 +56,16 @@ void rm_wapi_sdl::waitUntilActive()
 {
     SDL_Event event;
     SDL_WaitEvent(&event);
+}
+
+bool rm_wapi_sdl::wasWindowResized(bool reset)
+{
+    bool ret = wasResized;
+
+    if(reset)
+        wasResized = false;
+
+    return ret;
 }
  
 void rm_wapi_sdl::destroyWindow()

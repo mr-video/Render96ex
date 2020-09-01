@@ -24,6 +24,7 @@ public:
      */
     virtual bool handleEvents() = 0;
     virtual void waitUntilActive() = 0;
+    virtual bool wasWindowResized(bool reset) = 0;
     
     virtual PFN_vkGetInstanceProcAddr getVulkanLoader()
     {
