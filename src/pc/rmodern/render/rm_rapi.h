@@ -21,7 +21,7 @@ struct rm_vtx
 class rm_mesh
 {
 public:
-    virtual void preload(std::vector<rm_vtx> vertices, std::vector<uint32_t> indices) = 0;
+    virtual void preload(uint32_t numVertices, rm_vtx* vertices, uint32_t numIndices, uint32_t* indices) = 0;
     virtual void activate() = 0;
     virtual void deactivate() = 0;
     virtual void cleanup() = 0;

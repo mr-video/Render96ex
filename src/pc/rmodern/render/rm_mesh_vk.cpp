@@ -3,10 +3,10 @@
 #include <stdint.h>
 #include <stdexcept>
 
-void rm_mesh_vk::preload(std::vector<rm_vtx> vertices, std::vector<uint32_t> indices)
+void rm_mesh_vk::preload(uint32_t numVertices, rm_vtx* vertices, uint32_t numIndices, uint32_t* indices)
 {
-    mNumVertices = vertices.size();
-    mNumIndices = indices.size();
+    mNumVertices = numVertices;
+    mNumIndices = numIndices;
 
     /*** CREATE AND FILL VERTEX BUFFER ***/
 
@@ -20,7 +20,7 @@ void rm_mesh_vk::preload(std::vector<rm_vtx> vertices, std::vector<uint32_t> ind
 
     void* data;
     vkMapMemory(mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), bufferSize);
+    memcpy(data, vertices, bufferSize);
     vkUnmapMemory(mDevice, stagingBufferMemory);
 
     // Now create the actual veretex buffer
@@ -41,7 +41,7 @@ void rm_mesh_vk::preload(std::vector<rm_vtx> vertices, std::vector<uint32_t> ind
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer, &stagingBufferMemory);
 
     vkMapMemory(mDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), bufferSize);
+    memcpy(data, indices, bufferSize);
     vkUnmapMemory(mDevice, stagingBufferMemory);
 
     // Now create the actual veretex buffer

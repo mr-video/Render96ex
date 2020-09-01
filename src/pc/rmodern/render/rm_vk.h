@@ -13,7 +13,7 @@ extern const int MAX_FRAMES_IN_FLIGHT;
 class rm_mesh_vk : public rm_mesh
 {
 public:
-    virtual void preload(std::vector<rm_vtx> vertices, std::vector<uint32_t> indices);
+    virtual void preload(uint32_t numVertices, rm_vtx* vertices, uint32_t numIndices, uint32_t* indices);
     virtual void activate();
     virtual void deactivate();
     virtual void cleanup();
@@ -25,8 +25,8 @@ private:
 	uint32_t mNumVertices;
 	uint32_t mNumIndices;
 
-	bool initialized;
-	rm_rapi_vk* mRAPI;
+	bool initialized = false;
+	rm_rapi_vk* mRAPI = nullptr;
 	VkDevice mDevice = VK_NULL_HANDLE;
 
 	VkBuffer mVertexBuffer = VK_NULL_HANDLE;

@@ -5,6 +5,9 @@
 
 #include <iostream>
 
+#include <PR/gbi.h>
+#include "../../../actors/common0.h"
+
 void rmodern_init()
 {
     rm_rapi* rapi = new rm_rapi_vk;
@@ -20,12 +23,19 @@ void rmodern_init()
 
     wapi->createWindow(rapi->getRequiredWindowFlags());
     rapi->init();
+
+    rm_mesh* mesh = rapi->createMesh();
+    mesh->preloadFromDL(flyguy_seg8_dl_08011420);
     
     while(wapi->handleEvents())
     {
-        ;
+        rapi->beginFrame();
+        mesh->render();
+        rapi->completeFrame();
     }
 
+    mesh->cleanup();
+    delete mesh;
     rapi->cleanup();
     wapi->destroyWindow();
     wapi->cleanup();
