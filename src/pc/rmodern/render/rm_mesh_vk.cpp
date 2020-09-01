@@ -94,5 +94,5 @@ void rm_mesh_vk::activate()
 
 void rm_mesh_vk::deactivate()
 {
-    
+
 }

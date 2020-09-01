@@ -95,7 +95,9 @@ uint32_t rm_rapi_vk::getRequiredWindowFlags()
 
 rm_mesh* rm_rapi_vk::createMesh()
 {
-    return nullptr;
+	rm_mesh_vk* mesh = new rm_mesh_vk;
+	mesh->init(this);
+	return mesh;
 }
 
 bool rm_rapi_vk::init()
@@ -847,6 +849,8 @@ VkShaderModule rm_rapi_vk::createShaderModule(const std::vector<char>& code)
 
     return ret;
 }
+
+
 
 static std::vector<char> readFile(const std::string& filename)
 {
