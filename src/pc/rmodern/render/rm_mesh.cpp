@@ -9,37 +9,7 @@
 #endif
 #include <PR/gbi.h>
 
-int8_t getGfxCmd(const Gfx& gfx)
-{
-	return (gfx.words.w0 >> 24) & 0xFF;
-}
-
-void* getGfxPtr(const Gfx& gfx)
-{
-	return (void*)gfx.words.w1;
-}
-
-uint16_t getGfxLength(const Gfx& gfx)
-{
-	return (gfx.words.w0 >> 12) & 0x00FF;
-}
-
-uint8_t getGfxParam(const Gfx& gfx)
-{
-	return (gfx.words.w0 >> 16) & 0xFF;
-}
-
-const uint8_t* getGfxVertices0(const Gfx& gfx)
-{
-	uint8_t* ptr = (uint8_t*)&(gfx.words.w0);
-	return &ptr[0];
-}
-
-const uint8_t* getGfxVertices1(const Gfx& gfx)
-{
-	uint8_t* ptr = (uint8_t*)&(gfx.words.w1);
-	return &ptr[0];
-}
+#include "dl_decode.h"
 
 #define RDP_MAX_VERTICES 32
 
@@ -49,16 +19,16 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 	uint32_t numVertices = 0;
 	uint32_t numIndices = 0;
 
-	int8_t cmd = getGfxCmd(displayList[0]);
+	int8_t cmd = dl_cmd(displayList[0]);
 
-	for (size_t i = 0; cmd != (int8_t)G_ENDDL; cmd = getGfxCmd(displayList[++i]))
+	for (size_t i = 0; cmd != (int8_t)G_ENDDL; cmd = dl_cmd(displayList[++i]))
 	{
 		switch (cmd)
 		{
 		case G_MOVEMEM:
 			break;
 		case G_VTX:
-			numVertices += getGfxLength(displayList[i]);	// number of vertices
+			numVertices += dl_vtx_count(displayList[i]);	// number of vertices
 			break;
 		case G_TRI1:
 			numIndices += 3;
@@ -88,9 +58,9 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 
 	/*** PARSE DISPLAYLIST TO FILL BUFFERS ***/
 
-	cmd = getGfxCmd(displayList[0]);
+	cmd = dl_cmd(displayList[0]);
 
-	for (size_t i = 0; cmd != (int8_t)G_ENDDL; cmd = getGfxCmd(displayList[++i]))
+	for (size_t i = 0; cmd != (int8_t)G_ENDDL; cmd = dl_cmd(displayList[++i]))
 	{
 		switch (cmd)
 		{
@@ -98,10 +68,10 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 			break;
 		case G_VTX:
 			{
-				Vtx* vtx = (Vtx*)getGfxPtr(displayList[i]);						// vertex data source
-				uint16_t numNewVertices = getGfxLength(displayList[i]);			// number of vertices
-				size_t nStart = (displayList[i].words.w0 >> 1) & 0x3F;				// start position in vertex buffer
-				nStart -= (displayList[i].words.w0 >> 12) & 0xFF;
+				Vtx* vtx = (Vtx*)dl_ptr(displayList[i]);						// vertex data source
+				uint16_t numNewVertices = dl_vtx_count(displayList[i]);			// number of vertices
+				size_t nStart = dl_vtx_start(displayList[i]);					// start position in vertex buffer
+
 																					// TODO: make sure this is right
 				uint32_t mapPos = nextVertex;										// start position in map
 				uint32_t initMapPos = mapPos;
@@ -120,7 +90,7 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 		case G_TRI1:
 			{
 				// load this triangle's vertex data
-				const uint8_t* cVertices = getGfxVertices1(displayList[i]);
+				const uint8_t* cVertices = dl_tri1_verts(displayList[i]);
 
 				// map the indices and push them onto the index vector
 				uint32_t mappedIndices[3];
@@ -136,8 +106,8 @@ void rm_mesh::preloadFromDL(const Gfx* displayList)
 		case G_TRI2:
 			{
 				// load this triangle's vertex data
-				const uint8_t* cVertices0 = getGfxVertices0(displayList[i]);
-				const uint8_t* cVertices1 = getGfxVertices1(displayList[i]);
+				const uint8_t* cVertices0 = dl_tri1_verts(displayList[i]);
+				const uint8_t* cVertices1 = dl_tri2_verts(displayList[i]);
 
 				// map the indices and push them onto the index vector
 				uint32_t mappedIndices[6];
