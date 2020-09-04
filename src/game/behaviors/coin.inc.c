@@ -93,13 +93,13 @@ void bhv_coin_loop(void) {
             obj_mark_for_deletion(o);
     }
 #ifndef VERSION_JP
-    if (o->oMoveFlags & OBJ_MOVE_13) {
+    if (o->oMoveFlags & OBJ_MOVE_BOUNCE) {
         if (o->oCoinUnk1B0 < 5)
             cur_obj_play_sound_2(0x30364081);
         o->oCoinUnk1B0++;
     }
 #else
-    if (o->oMoveFlags & OBJ_MOVE_13)
+    if (o->oMoveFlags & OBJ_MOVE_BOUNCE)
         cur_obj_play_sound_2(SOUND_GENERAL_COIN_DROP);
 #endif
     if (cur_obj_wait_then_blink(400, 20))
@@ -184,23 +184,17 @@ void bhv_coin_formation_loop(void) {
     s32 bitIndex;
     switch (o->oAction) {
         case 0:
-#ifndef NODRAWINGDISTANCE
             if (o->oDistanceToMario < 2000.0f) {
-#endif
                 for (bitIndex = 0; bitIndex < 8; bitIndex++) {
                     if (!(o->oCoinUnkF4 & (1 << bitIndex)))
                         spawn_coin_in_formation(bitIndex, o->oBehParams2ndByte);
                 }
                 o->oAction++;
-#ifndef NODRAWINGDISTANCE
             }
-#endif
             break;
         case 1:
-#ifndef NODRAWINGDISTANCE
             if (o->oDistanceToMario > 2100.0f)
                 o->oAction++;
-#endif
             break;
         case 2:
             o->oAction = 0;
@@ -214,7 +208,7 @@ void bhv_coin_formation_loop(void) {
 void coin_inside_boo_act_1(void) {
     cur_obj_update_floor_and_walls();
     cur_obj_if_hit_wall_bounce_away();
-    if (o->oMoveFlags & OBJ_MOVE_13)
+    if (o->oMoveFlags & OBJ_MOVE_BOUNCE)
         cur_obj_play_sound_2(SOUND_GENERAL_COIN_DROP);
     if (o->oTimer > 90 || (o->oMoveFlags & OBJ_MOVE_LANDED)) {
         obj_set_hitbox(o, &sYellowCoinHitbox);
@@ -261,7 +255,6 @@ void bhv_coin_sparkles_loop(void) {
 
 void bhv_golden_coin_sparkles_loop(void) {
     struct Object *sp2C;
-    UNUSED s32 unused;
     f32 sp24 = 30.0f;
     sp2C = spawn_object(o, MODEL_SPARKLES, bhvCoinSparkles);
     sp2C->oPosX += random_float() * sp24 - sp24 / 2;

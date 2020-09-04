@@ -53,7 +53,7 @@ static u8 sKoopaShelledAttackHandlers[] = {
 struct KoopaTheQuickProperties {
     s16 initText;
     s16 winText;
-    void *path;
+    void const *path;
     Vec3s starPos;
 };
 
@@ -525,7 +525,7 @@ static void koopa_the_quick_act_show_init_text(void) {
         o->oForwardVel = 0.0f;
 
         o->parentObj = cur_obj_nearest_object_with_behavior(bhvKoopaRaceEndpoint);
-        o->oPathedStartWaypoint = o->oPathedPrevWaypoint =
+        o->oPathedStartWaypoint = o->oPathedPrevWaypoint = (struct Waypoint*) 
             segmented_to_virtual(sKoopaTheQuickProperties[o->oKoopaTheQuickRaceIndex].path);
 
         o->oKoopaTurningAwayFromWall = FALSE;

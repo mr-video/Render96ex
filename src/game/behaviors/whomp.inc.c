@@ -122,13 +122,13 @@ void whomp_act_4(void) {
 }
 
 void whomp_act_5(void) {
-    if (o->oSubAction == 0 && o->oMoveFlags & 1) {
+    if (o->oSubAction == 0 && o->oMoveFlags & OBJ_MOVE_LANDED) {
         cur_obj_play_sound_2(SOUND_OBJ_WHOMP_LOWPRIO);
         cur_obj_shake_screen(SHAKE_POS_SMALL);
         o->oVelY = 0.0f;
         o->oSubAction++;
     }
-    if (o->oMoveFlags & 2)
+    if (o->oMoveFlags & OBJ_MOVE_ON_GROUND)
         o->oAction = 6;
 }
 
@@ -151,16 +151,16 @@ void king_whomp_on_ground(void) {
             }
             o->oSubAction++;
         }
-        o->oWhompUnkF8 = 0;
+        o->oWhompShakeVal = 0;
     } else {
-        if (o->oWhompUnkF8 < 10) {
-            if (o->oWhompUnkF8 % 2)
+        if (o->oWhompShakeVal < 10) {
+            if (o->oWhompShakeVal % 2)
                 o->oPosY += 8.0f;
             else
                 o->oPosY -= 8.0f;
         } else
             o->oSubAction = 10;
-        o->oWhompUnkF8++;
+        o->oWhompShakeVal++;
     }
 }
 
@@ -246,14 +246,10 @@ void bhv_whomp_loop(void) {
     cur_obj_call_action_function(sWhompActions);
     cur_obj_move_standard(-20);
     if (o->oAction != 9) {
-#ifndef NODRAWINGDISTANCE
-        // o->oBehParams2ndByte here seems to be a flag
-        // indicating whether this is a normal or king whomp
         if (o->oBehParams2ndByte != 0)
             cur_obj_hide_if_mario_far_away_y(2000.0f);
         else
             cur_obj_hide_if_mario_far_away_y(1000.0f);
-#endif
         load_object_collision_model();
     }
 }

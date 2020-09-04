@@ -1,5 +1,4 @@
 #include <ultra64.h>
-#include <macros.h>
 
 #include "heap.h"
 #include "data.h"
@@ -303,7 +302,7 @@ void temporary_pools_init(struct PoolSplit *a) {
 }
 
 #ifndef VERSION_EU
-static void unused_803163D4() {
+static void unused_803163D4(void) {
 }
 #endif
 
@@ -480,7 +479,7 @@ void *alloc_bank_or_seq(struct SoundMultiPool *arg0, s32 arg1, s32 size, s32 arg
 
     if (ret == NULL)
 #else
-    persistent->entries[persistent->numEntries].ptr = soundAlloc(&persistent->pool, arg1 * size);
+    persistent->entries[persistent->numEntries].ptr = (u8*) soundAlloc(&persistent->pool, arg1 * size);
 
     if (persistent->entries[persistent->numEntries].ptr == NULL)
 #endif
@@ -649,9 +648,14 @@ s32 audio_shut_down_and_reset_step(void) {
 /**
  * Waits until a specified number of audio frames have been created
  */
-void wait_for_audio_frames(s32 frames) {
+void wait_for_audio_frames(UNUSED s32 frames) {
     gAudioFrameCount = 0;
-
+#ifdef TARGET_N64
+    // Sound thread will update gAudioFrameCount
+    while (gAudioFrameCount < frames) {
+        // spin
+    }
+#endif
 }
 #endif
 
@@ -837,11 +841,11 @@ void audio_reset_session(void) {
 
 #ifndef VERSION_EU
     for (j = 0; j < 2; j++) {
-        gAudioCmdBuffers[j] = soundAlloc(&gNotesAndBuffersPool, gMaxAudioCmds * sizeof(u64));
+        gAudioCmdBuffers[j] = (u64*) soundAlloc(&gNotesAndBuffersPool, gMaxAudioCmds * sizeof(u64));
     }
 #endif
 
-    gNotes = soundAlloc(&gNotesAndBuffersPool, gMaxSimultaneousNotes * sizeof(struct Note));
+    gNotes = (struct Note*) soundAlloc(&gNotesAndBuffersPool, gMaxSimultaneousNotes * sizeof(struct Note));
     note_init_all();
     init_note_free_list();
 
@@ -893,8 +897,8 @@ void audio_reset_session(void) {
         gSynthesisReverb.useReverb = 0;
     } else {
         gSynthesisReverb.useReverb = 8;
-        gSynthesisReverb.ringBuffer.left = soundAlloc(&gNotesAndBuffersPool, reverbWindowSize * 2);
-        gSynthesisReverb.ringBuffer.right = soundAlloc(&gNotesAndBuffersPool, reverbWindowSize * 2);
+        gSynthesisReverb.ringBuffer.left = (s16*) soundAlloc(&gNotesAndBuffersPool, reverbWindowSize * 2);
+        gSynthesisReverb.ringBuffer.right = (s16*) soundAlloc(&gNotesAndBuffersPool, reverbWindowSize * 2);
         gSynthesisReverb.nextRingBufferPos = 0;
         gSynthesisReverb.unkC = 0;
         gSynthesisReverb.curFrame = 0;
@@ -904,15 +908,15 @@ void audio_reset_session(void) {
         if (gReverbDownsampleRate != 1) {
             gSynthesisReverb.resampleFlags = A_INIT;
             gSynthesisReverb.resampleRate = 0x8000 / gReverbDownsampleRate;
-            gSynthesisReverb.resampleStateLeft = soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
-            gSynthesisReverb.resampleStateRight = soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
-            gSynthesisReverb.unk24 = soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
-            gSynthesisReverb.unk28 = soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
+            gSynthesisReverb.resampleStateLeft = (s16*) soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
+            gSynthesisReverb.resampleStateRight = (s16*) soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
+            gSynthesisReverb.unk24 = (s16*) soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
+            gSynthesisReverb.unk28 = (s16*) soundAlloc(&gNotesAndBuffersPool, 16 * sizeof(s16));
             for (i = 0; i < gAudioUpdatesPerFrame; i++) {
-                mem = soundAlloc(&gNotesAndBuffersPool, DEFAULT_LEN_2CH);
+                mem = (s16*) soundAlloc(&gNotesAndBuffersPool, DEFAULT_LEN_2CH);
                 gSynthesisReverb.items[0][i].toDownsampleLeft = mem;
                 gSynthesisReverb.items[0][i].toDownsampleRight = mem + DEFAULT_LEN_1CH / sizeof(s16);
-                mem = soundAlloc(&gNotesAndBuffersPool, DEFAULT_LEN_2CH);
+                mem = (s16*) soundAlloc(&gNotesAndBuffersPool, DEFAULT_LEN_2CH);
                 gSynthesisReverb.items[1][i].toDownsampleLeft = mem;
                 gSynthesisReverb.items[1][i].toDownsampleRight = mem + DEFAULT_LEN_1CH / sizeof(s16);
             }

@@ -1,8 +1,14 @@
-#ifndef _LEVEL_SCRIPT_H
-#define _LEVEL_SCRIPT_H
+#ifndef LEVEL_SCRIPT_H
+#define LEVEL_SCRIPT_H
 
-struct LevelCommand *level_script_execute(struct LevelCommand *cmd);
+#include <PR/ultratypes.h>
 
-extern u8 level_script_entry[];
+#include "util/unused.hpp"
 
-#endif /* _LEVEL_SCRIPT_H */
+struct LevelCommand;
+
+extern const LevelScript* get_level_script_entry(int& out_count = unused_int);
+
+struct LevelCommand* level_script_execute(struct LevelCommand* cmd);
+
+#endif // LEVEL_SCRIPT_H

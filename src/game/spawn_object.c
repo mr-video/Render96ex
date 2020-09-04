@@ -1,18 +1,18 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
-#include "sm64.h"
-#include "engine/math_util.h"
-#include "area.h"
+#include "audio/external.h"
+#include "common/object/i_object_wrapper.hpp"
 #include "engine/geo_layout.h"
 #include "engine/graph_node.h"
-#include "object_helpers.h"
-#include "engine/behavior_script.h"
+#include "engine/math_util.h"
 #include "engine/surface_collision.h"
-#include "audio/external.h"
-#include "level_update.h"
-#include "spawn_object.h"
-#include "object_list_processor.h"
 #include "level_table.h"
+#include "object_constants.h"
+#include "object_fields.h"
+#include "object_helpers.h"
+#include "object_list_processor.h"
+#include "spawn_object.h"
+#include "types.h"
 
 /**
  * An unused linked list struct that seems to have been replaced by ObjectNode.
@@ -28,7 +28,7 @@ struct LinkedList {
  * Appears to have been replaced by init_free_object_list.
  */
 void unused_init_free_list(struct LinkedList *usedList, struct LinkedList **pFreeList,
-                                  struct LinkedList *pool, s32 itemSize, s32 poolLength) {
+                           struct LinkedList *pool, s32 itemSize, s32 poolLength) {
     s32 i;
     struct LinkedList *node = pool;
 
@@ -55,7 +55,7 @@ void unused_init_free_list(struct LinkedList *usedList, struct LinkedList **pFre
  * Appears to have been replaced by try_allocate_object.
  */
 struct LinkedList *unused_try_allocate(struct LinkedList *destList,
-                                              struct LinkedList *freeList) {
+                                       struct LinkedList *freeList) {
     struct LinkedList *node = freeList->next;
 
     if (node != NULL) {
@@ -161,7 +161,8 @@ void clear_object_lists(struct ObjectNode *objLists) {
 }
 
 /**
- * Delete the leaf graph nodes under obj and obj's siblings.
+ * This function looks broken, but it appears to attempt to delete the leaf
+ * graph nodes under obj and obj's siblings.
  */
 static void unused_delete_leaf_nodes(struct Object *obj) {
     struct Object *children;
@@ -175,7 +176,8 @@ static void unused_delete_leaf_nodes(struct Object *obj) {
         mark_obj_for_deletion(obj);
     }
 
-    while ((sibling = (struct Object *) obj->header.gfx.node.next) != obj0) {
+    // Probably meant to be !=
+    while ((sibling = (struct Object *) obj->header.gfx.node.next) == obj0) {
         unused_delete_leaf_nodes(sibling);
         obj = (struct Object *) sibling->header.gfx.node.next;
     }
@@ -185,7 +187,7 @@ static void unused_delete_leaf_nodes(struct Object *obj) {
  * Free the given object.
  */
 void unload_object(struct Object *obj) {
-    obj->activeFlags = ACTIVE_FLAGS_DEACTIVATED;
+    obj->activeFlags = ACTIVE_FLAG_DEACTIVATED;
     obj->prevObj = NULL;
 
     obj->header.gfx.throwMatrix = NULL;
@@ -194,10 +196,11 @@ void unload_object(struct Object *obj) {
     geo_add_child(&gObjParentGraphNode, &obj->header.gfx.node);
 
     obj->header.gfx.node.flags &= ~GRAPH_RENDER_BILLBOARD;
-    obj->header.gfx.node.flags &= ~GRAPH_RENDER_CYLBOARD;
     obj->header.gfx.node.flags &= ~GRAPH_RENDER_ACTIVE;
 
     deallocate_object(&gFreeObjectList, &obj->header);
+
+    IObjectWrapper::destroy_wrapper_for(obj);
 }
 
 /**
@@ -294,8 +297,7 @@ struct Object *allocate_object(struct ObjectNode *objList) {
 }
 
 /**
- * If the object is close to being on the floor, move it to be exactly on the
- * floor.
+ * If the object is close to being on the floor, move it to be exactly on the floor.
  */
 static void snap_object_to_floor(struct Object *obj) {
     struct Surface *surface;
@@ -309,8 +311,7 @@ static void snap_object_to_floor(struct Object *obj) {
 }
 
 /**
- * Spawn an object at the origin with the behavior script at virtual address
- * bhvScript.
+ * Spawn an object at the origin with the behavior script at virtual address bhvScript.
  */
 struct Object *create_object(const BehaviorScript *bhvScript) {
     s32 objListIndex;
@@ -359,5 +360,5 @@ struct Object *create_object(const BehaviorScript *bhvScript) {
  */
 void mark_obj_for_deletion(struct Object *obj) {
     //! Same issue as obj_mark_for_deletion
-    obj->activeFlags = ACTIVE_FLAGS_DEACTIVATED;
+    obj->activeFlags = ACTIVE_FLAG_DEACTIVATED;
 }

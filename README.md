@@ -1,30 +1,90 @@
-# sm64ex
-Fork of [sm64-port/sm64-port](https://github.com/sm64-port/sm64-port) with additional features. 
+# Super Mario 64 Port
 
-Feel free to report bugs and contribute, but remember, there must be **no upload of any copyrighted asset**. 
-Run `./extract_assets.py --clean && make clean` or `make distclean` to remove ROM-originated content.
+- This repo contains a full decompilation of Super Mario 64 (J), (U), and (E) with minor exceptions in the audio subsystem.
+- Naming and documentation of the source code and data structures are in progress.
+- Efforts to decompile the Shindou ROM steadily advance toward a matching build.
+- Beyond Nintendo 64, it can also target Linux and Windows natively.
 
-Please contribute **first** to the [nightly branch](https://github.com/sm64pc/sm64ex/tree/nightly/). New functionality will be merged to master once they're considered to be well-tested.
+This repo does not include all assets necessary for compiling the game.
+A prior copy of the game is required to extract the assets.
 
-*Read this in other languages: [Español](README_es_ES.md), [Português](README_pt_BR.md) or [简体中文](README_zh_CN.md).*
+## Building native executables
 
-## New features
+### Linux
 
- * Options menu with various settings, including button remapping.
- * Optional external data loading (so far only textures and assembled soundbanks), providing support for custom texture packs.
- * Optional analog camera and mouse look (using [Puppycam](https://github.com/FazanaJ/puppycam)).
- * Optional OpenGL1.3-based renderer for older machines, as well as the original GL2.1, D3D11 and D3D12 renderers from Emill's [n64-fast3d-engine](https://github.com/Emill/n64-fast3d-engine/).
- * Option to disable drawing distances.
- * Optional model and texture fixes (e.g. the smoke texture).
- * Skip introductory Peach & Lakitu cutscenes with the `--skip-intro` CLI option
- * Cheats menu in Options (activate with `--cheats` or by pressing L thrice in the pause menu).
- * Support for both little-endian and big-endian save files (meaning you can use save files from both sm64-port and most emulators), as well as an optional text-based save format.
+1. Install prerequisites (Ubuntu): `sudo apt install -y git build-essential pkg-config libusb-1.0-0-dev libsdl2-dev`.
+2. Clone the repo: `git clone https://github.com/sm64-port/sm64-port.git`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
+3. Place a Super Mario 64 ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.
+4. Run `make` to build. Qualify the version through `make VERSION=<VERSION>`. Add `-j4` to improve build speed (hardware dependent based on the amount of CPU cores available).
+5. The executable binary will be located at `build/<VERSION>_pc/sm64.<VERSION>.f3dex2e`.
 
-Recent changes in Nightly have moved the save and configuration file path to `%HOMEPATH%\AppData\Roaming\sm64pc` on Windows and `$HOME/.local/share/sm64pc` on Linux. This behaviour can be changed with the `--savepath` CLI option.
-For example `--savepath .` will read saves from the current directory (which not always matches the exe directory, but most of the time it does);
-   `--savepath '!'` will read saves from the executable directory.
+### Windows
 
-## Building
-For building instructions, please refer to the [wiki](https://github.com/sm64pc/sm64ex/wiki).
+1. Install and update MSYS2, following all the directions listed on https://www.msys2.org/.
+2. From the start menu, launch MSYS2 MinGW and install required packages depending on your machine (do **NOT** launch "MSYS2 MSYS"):
+  * 64-bit: Launch "MSYS2 MinGW 64-bit" and install: `pacman -S git make python3 mingw-w64-x86_64-gcc`
+  * 32-bit (will also work on 64-bit machines): Launch "MSYS2 MinGW 32-bit" and install: `pacman -S git make python3 mingw-w64-i686-gcc`
+  * Do **NOT** by mistake install the package called simply `gcc`.
+3. The MSYS2 terminal has a _current working directory_ that initially is `C:\msys64\home\<username>` (home directory). At the prompt, you will see the current working directory in yellow. `~` is an alias for the home directory. You can change the current working directory to `My Documents` by entering `cd /c/Users/<username>/Documents`.
+4. Clone the repo: `git clone https://github.com/sm64-port/sm64-port.git`, which will create a directory `sm64-port` and then **enter** it `cd sm64-port`.
+5. Place a *Super Mario 64* ROM called `baserom.<VERSION>.z64` into the repository's root directory for asset extraction, where `VERSION` can be `us`, `jp`, or `eu`.
+6. Run `make` to build. Qualify the version through `make VERSION=<VERSION>`. Add `-j4` to improve build speed (hardware dependent based on the amount of CPU cores available).
+7. The executable binary will be located at `build/<VERSION>_pc/sm64.<VERSION>.f3dex2e.exe` inside the repository.
 
-**Make sure you have MXE first before attempting to compile for Windows on Linux and WSL. Follow the guide on the wiki.**
+#### Troubleshooting
+
+1. If you get `make: gcc: command not found` or `make: gcc: No such file or directory` although the packages did successfully install, you probably launched the wrong MSYS2. Read the instructions again. The terminal prompt should contain "MINGW32" or "MINGW64" in purple text, and **NOT** "MSYS".
+2. If you get `Failed to open baserom.us.z64!` you failed to place the baserom in the repository. You can write `ls` to list the files in the current working directory. If you are in the `sm64-port` directory, make sure you see it here.
+3. If you get `make: *** No targets specified and no makefile found. Stop.`, you are not in the correct directory. Make sure the yellow text in the terminal ends with `sm64-port`. Use `cd <dir>` to enter the correct directory. If you write `ls` you should see all the project files, including `Makefile` if everything is correct.
+4. If you get any error, be sure MSYS2 packages are up to date by executing `pacman -Syu` and `pacman -Su`. If the MSYS2 window closes immediately after opening it, restart your computer.
+5. When you execute `gcc -v`, be sure you see `Target: i686-w64-mingw32` or `Target: x86_64-w64-mingw32`. If you see `Target: x86_64-pc-msys`, you either opened the wrong MSYS start menu entry or installed the incorrect gcc package.
+
+### Debugging
+
+The code can be debugged using `gdb`. On Linux install the `gdb` package and execute `gdb <executable>`. On MSYS2 install by executing `pacman -S winpty gdb` and execute `winpty gdb <executable>`. The `winpty` program makes sure the keyboard works correctly in the terminal. Also consider changing the `-mwindows` compile flag to `-mconsole` to be able to see stdout/stderr as well as be able to press Ctrl+C to interrupt the program. In the Makefile, make sure you compile the sources using `-g` rather than `-O2` to include debugging symbols. See any online tutorial for how to use gdb.
+
+## ROM building
+
+It is possible to build N64 ROMs as well with this repository. See https://github.com/n64decomp/sm64 for instructions.
+
+## Project Structure
+
+```
+sm64
+├── actors: object behaviors, geo layout, and display lists
+├── asm: handwritten assembly code, rom header
+│   └── non_matchings: asm for non-matching sections
+├── assets: animation and demo data
+│   ├── anims: animation data
+│   └── demos: demo data
+├── bin: C files for ordering display lists and textures
+├── build: output directory
+├── data: behavior scripts, misc. data
+├── doxygen: documentation infrastructure
+├── enhancements: example source modifications
+├── include: header files
+├── levels: level scripts, geo layout, and display lists
+├── lib: SDK library code
+├── rsp: audio and Fast3D RSP assembly code
+├── sound: sequences, sound samples, and sound banks
+├── src: C source code for game
+│   ├── audio: audio code
+│   ├── buffers: stacks, heaps, and task buffers
+│   ├── engine: script processing engines and utils
+│   ├── game: behaviors and rest of game source
+│   ├── goddard: Mario intro screen
+│   ├── menu: title screen and file, act, and debug level selection menus
+│   └── pc: port code, audio and video renderer
+├── text: dialog, level names, act names
+├── textures: skybox and generic texture data
+└── tools: build tools
+```
+
+## Contributing
+
+Pull requests are welcome. For major changes, please open an issue first to
+discuss what you would like to change.
+
+Run `clang-format` on your code to ensure it meets the project's coding standards.
+
+Official Discord: https://discord.gg/7bcNTPK

@@ -1,22 +1,22 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
+#include <PR/gbi.h>
 #include <math.h>
 
-#include "sm64.h"
-#include "shadow.h"
-
-#include "area.h"
-#include "engine/graph_node.h"
 #include "engine/math_util.h"
 #include "engine/surface_collision.h"
-#include "mario_animation_ids.h"
-#include "mario.h"
-#include "memory.h"
-#include "rendering_graph_node.h"
-#include "object_list_processor.h"
-#include "segment2.h"
-#include "save_file.h"
 #include "geo_misc.h"
 #include "level_table.h"
+#include "memory.h"
+#include "object_list_processor.h"
+#include "rendering_graph_node.h"
+#include "segment2.h"
+#include "shadow.h"
+#include "sm64.h"
+
+#ifndef TARGET_N64
+// Avoid Z-fighting
+#define find_floor_height_and_data 0.4 + find_floor_height_and_data
+#endif
 
 /**
  * @file shadow.c
@@ -627,8 +627,8 @@ Gfx *create_shadow_player(f32 xPos, f32 yPos, f32 zPos, s16 shadowScale, u8 soli
         return NULL;
     }
 
-    verts = alloc_display_list(9 * sizeof(Vtx));
-    displayList = alloc_display_list(5 * sizeof(Gfx));
+    verts = (Vtx*) alloc_display_list(9 * sizeof(Vtx));
+    displayList = (Gfx*) alloc_display_list(5 * sizeof(Gfx));
     if (verts == NULL || displayList == NULL) {
         return NULL;
     }
@@ -655,8 +655,8 @@ Gfx *create_shadow_circle_9_verts(f32 xPos, f32 yPos, f32 zPos, s16 shadowScale,
         return NULL;
     }
 
-    verts = alloc_display_list(9 * sizeof(Vtx));
-    displayList = alloc_display_list(5 * sizeof(Gfx));
+    verts = (Vtx*) alloc_display_list(9 * sizeof(Vtx));
+    displayList = (Gfx*) alloc_display_list(5 * sizeof(Gfx));
 
     if (verts == NULL || displayList == NULL) {
         return 0;
@@ -681,8 +681,8 @@ Gfx *create_shadow_circle_4_verts(f32 xPos, f32 yPos, f32 zPos, s16 shadowScale,
         return NULL;
     }
 
-    verts = alloc_display_list(4 * sizeof(Vtx));
-    displayList = alloc_display_list(5 * sizeof(Gfx));
+    verts = (Vtx*) alloc_display_list(4 * sizeof(Vtx));
+    displayList = (Gfx*) alloc_display_list(5 * sizeof(Gfx));
 
     if (verts == NULL || displayList == NULL) {
         return 0;
@@ -714,8 +714,8 @@ Gfx *create_shadow_circle_assuming_flat_ground(f32 xPos, f32 yPos, f32 zPos, s16
         distBelowFloor = floorHeight - yPos;
     }
 
-    verts = alloc_display_list(4 * sizeof(Vtx));
-    displayList = alloc_display_list(5 * sizeof(Gfx));
+    verts = (Vtx*) alloc_display_list(4 * sizeof(Vtx));
+    displayList = (Gfx*) alloc_display_list(5 * sizeof(Gfx));
 
     if (verts == NULL || displayList == NULL) {
         return 0;
@@ -735,8 +735,8 @@ Gfx *create_shadow_circle_assuming_flat_ground(f32 xPos, f32 yPos, f32 zPos, s16
  * underneath the shadow is totally flat.
  */
 Gfx *create_shadow_rectangle(f32 halfWidth, f32 halfLength, f32 relY, u8 solidity) {
-    Vtx *verts = alloc_display_list(4 * sizeof(Vtx));
-    Gfx *displayList = alloc_display_list(5 * sizeof(Gfx));
+    Vtx *verts = (Vtx*) alloc_display_list(4 * sizeof(Vtx));
+    Gfx *displayList = (Gfx*) alloc_display_list(5 * sizeof(Gfx));
     f32 frontLeftX, frontLeftZ, frontRightX, frontRightZ, backLeftX, backLeftZ, backRightX, backRightZ;
 
     if (verts == NULL || displayList == NULL) {

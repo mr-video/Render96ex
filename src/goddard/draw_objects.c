@@ -1,20 +1,18 @@
-#include <ultra64.h>
-#include <macros.h>
+#include <PR/ultratypes.h>
 #include <stdio.h>
 
-#include "gd_types.h"
+#include "debug_utils.h"
+#include "dynlist_proc.h"
 #include "gd_macros.h"
 #include "gd_main.h"
-#include "objects.h"
-#include "dynlist_proc.h"
-#include "old_menu.h"
-#include "debug_utils.h"
 #include "gd_math.h"
-#include "shape_helper.h"
+#include "gd_types.h"
+#include "macros.h"
+#include "objects.h"
+#include "old_menu.h"
 #include "renderer.h"
+#include "shape_helper.h"
 #include "draw_objects.h"
-
-#include "gfx_dimensions.h"
 
 /**
  * @file draw_objects.c
@@ -480,10 +478,10 @@ void draw_face(struct ObjFace *face) {
         //!      as the struct requests fields passed the end of an ObjVertex.
         //!      The bad code is statically unreachable, so...
         if (hasTextCoords) {
-            set_Vtx_tc_buf(((struct BetaVtx *) vtx)->s, ((struct BetaVtx *) vtx)->t);
+            set_vtx_tc_buf(((struct BetaVtx *) vtx)->s, ((struct BetaVtx *) vtx)->t);
         }
 
-        gbiVtx = make_Vtx_if_new(x, y, z, vtx->alpha);
+        gbiVtx = make_vtx_if_new(x, y, z, vtx->alpha);
 
         if (gbiVtx != NULL) {
             vtx->gbiVerts = make_vtx_link(vtx->gbiVerts, gbiVtx);
@@ -695,19 +693,14 @@ void func_80179B64(struct ObjGroup *group) {
                                 (applyproc_t) Unknown80179ACC, group);
 }
 
-// plc again
-void func_80179B9C(struct GdVec3f *pos, struct ObjCamera *cam, struct ObjView *view)
-{
-    f32 aspect = GFX_DIMENSIONS_ASPECT_RATIO;
-    aspect *= 0.75;
-    //func_80196430(pos, &cam->unkE8);
+/* 22836C -> 228498 */
+void func_80179B9C(struct GdVec3f *pos, struct ObjCamera *cam, struct ObjView *view) {
     gd_rotate_and_translate_vec3f(pos, &cam->unkE8);
-
     if (pos->z > -256.0f) {
         return;
     }
-    
-    pos->x *= 256.0 / -pos->z / aspect;
+
+    pos->x *= 256.0 / -pos->z;
     pos->y *= 256.0 / pos->z;
     pos->x += view->lowerRight.x / 2.0f;
     pos->y += view->lowerRight.y / 2.0f;
@@ -807,7 +800,8 @@ void drawscene(enum SceneType process, struct ObjGroup *interactables, struct Ob
     sSceneProcessType = process;
 
     if ((sNumActiveLights = sUpdateViewState.view->flags & VIEW_LIGHT)) {
-        sUpdateViewState.view->flags &= ~VIEW_LIGHT;
+      sUpdateViewState.view->flags = (enum GdViewFlags)(
+        sUpdateViewState.view->flags & ~VIEW_LIGHT);
     }
 
     sNumActiveLights = 1;
@@ -1406,7 +1400,7 @@ void update_view(struct ObjView *view) {
     sUpdateViewState.unused18 = 0;
 
     if (!(view->flags & VIEW_UPDATE)) {
-        view->flags &= ~VIEW_WAS_UPDATED;
+        view->flags = (enum GdViewFlags) (view->flags & ~VIEW_WAS_UPDATED);
         return;
     }
 
@@ -1416,7 +1410,7 @@ void update_view(struct ObjView *view) {
     }
 
     if (!(view->flags & VIEW_WAS_UPDATED)) {
-        view->flags |= VIEW_WAS_UPDATED;
+      view->flags = (enum GdViewFlags)(view->flags | VIEW_WAS_UPDATED);
     }
 
     gViewUpdateCamera = NULL;

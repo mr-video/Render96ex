@@ -42,7 +42,7 @@ void elevator_act_1(void) {
     }
 }
 
-void elevator_act_2() // Pretty similar code to action 1
+void elevator_act_2(void) // Pretty similar code to action 1
 {
     cur_obj_play_sound_1(SOUND_ENV_ELEVATOR1);
     if (o->oTimer == 0 && cur_obj_is_mario_on_platform())
@@ -62,7 +62,7 @@ void elevator_act_2() // Pretty similar code to action 1
     }
 }
 
-void elevator_act_4() {
+void elevator_act_4(void) {
     o->oVelY = 0;
     if (o->oTimer == 0) {
         cur_obj_shake_screen(SHAKE_POS_SMALL);
@@ -72,7 +72,7 @@ void elevator_act_4() {
         o->oAction = 1;
 }
 
-void elevator_act_3() // nearly identical to action 2
+void elevator_act_3(void) // nearly identical to action 2
 {
     o->oVelY = 0;
     if (o->oTimer == 0) {
@@ -103,11 +103,11 @@ void (*sElevatorActions[])(void) = { elevator_act_0, elevator_act_1, elevator_ac
 
 struct SpawnParticlesInfo D_8032F3CC = { 3, 20, MODEL_MIST, 20, 10, 5, 0, 0, 0, 30, 30.0f, 1.5f };
 
-struct SpawnParticlesInfo D_8032F3E0 = { 0, 5, MODEL_SAND_DUST, 0, 0, 20, 20, 0, 252, 30, 5.0f, 2.0f };
+struct SpawnParticlesInfo D_8032F3E0 = { 0, 5, MODEL_SAND_DUST, 0, 0, 20, 20, 0, (s8) 252, 30, 5.0f, 2.0f };
 
 s16 D_8032F3F4[] = { 2, -8, 1, 4 };
 
-struct SpawnParticlesInfo D_8032F3FC = { 0,    5,   MODEL_WHITE_PARTICLE_DL, 0, 0, 20, 20, 0, 252, 30,
+struct SpawnParticlesInfo D_8032F3FC = { 0,    5,   MODEL_WHITE_PARTICLE_DL, 0, 0, 20, 20, 0, (s8) 252, 30,
                                          2.0f, 2.0f };
 
 void bhv_elevator_loop(void) {

@@ -1,9 +1,9 @@
 #include <ultra64.h>
 
 #include "sm64.h"
+#include "gfx_dimensions.h"
 #include "audio/external.h"
 #include "buffers/buffers.h"
-#include "gfx_dimensions.h"
 #include "buffers/gfx_output_buffer.h"
 #include "buffers/framebuffers.h"
 #include "buffers/zbuffer.h"
@@ -17,12 +17,11 @@
 #include "sound_init.h"
 #include "print.h"
 #include "segment2.h"
-#include "main_entry.h"
+#include "segment_symbols.h"
 #include "thread6.h"
 #include <prevent_bss_reordering.h>
-#ifdef BETTERCAMERA
-#include "bettercamera.h"
-#endif
+
+#include "levels/scripts.h"
 
 // FIXME: I'm not sure all of these variables belong in this file, but I don't
 // know of a good way to split them
@@ -62,8 +61,6 @@ struct DemoInput *gCurrDemoInput = NULL; // demo input sequence
 u16 gDemoInputListID = 0;
 struct DemoInput gRecordedDemoInput = { 0 }; // possibly removed in EU. TODO: Check
 
-extern int c_rightx;
-extern int c_righty;
 /**
  * Initializes the Reality Display Processor (RDP).
  * This function initializes settings such as texture filtering mode,
@@ -146,16 +143,16 @@ void display_frame_buffer(void) {
 }
 
 /** Clears the framebuffer, allowing it to be overwritten. */
-void clear_frame_buffer(s32 a) {
+void clear_frame_buffer(s32 color) {
     gDPPipeSync(gDisplayListHead++);
 
     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
     gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
 
-    gDPSetFillColor(gDisplayListHead++, a);
-
-    // Ratio-correct borderfill
-    gDPFillRectangle(gDisplayListHead++, GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(0), BORDER_HEIGHT, GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(0) - 1, SCREEN_HEIGHT - BORDER_HEIGHT - 1);
+    gDPSetFillColor(gDisplayListHead++, color);
+    gDPFillRectangle(gDisplayListHead++,
+                     GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(0), BORDER_HEIGHT,
+                     GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(0) - 1, SCREEN_HEIGHT - BORDER_HEIGHT - 1);
 
     gDPPipeSync(gDisplayListHead++);
 
@@ -163,19 +160,24 @@ void clear_frame_buffer(s32 a) {
 }
 
 /** Clears and initializes the viewport. */
-void clear_viewport(Vp *viewport, s32 b) {
+void clear_viewport(Vp *viewport, s32 color) {
     s16 vpUlx = (viewport->vp.vtrans[0] - viewport->vp.vscale[0]) / 4 + 1;
     s16 vpUly = (viewport->vp.vtrans[1] - viewport->vp.vscale[1]) / 4 + 1;
-    s16 VpLrx = (viewport->vp.vtrans[0] + viewport->vp.vscale[0]) / 4 - 2;
+    s16 vpLrx = (viewport->vp.vtrans[0] + viewport->vp.vscale[0]) / 4 - 2;
     s16 vpLry = (viewport->vp.vtrans[1] + viewport->vp.vscale[1]) / 4 - 2;
+
+#ifdef WIDESCREEN
+    vpUlx = GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(vpUlx);
+    vpLrx = GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(SCREEN_WIDTH - vpLrx);
+#endif
 
     gDPPipeSync(gDisplayListHead++);
 
     gDPSetRenderMode(gDisplayListHead++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
     gDPSetCycleType(gDisplayListHead++, G_CYC_FILL);
 
-    gDPSetFillColor(gDisplayListHead++, b);
-    gDPFillRectangle(gDisplayListHead++, vpUlx, vpUly, VpLrx, vpLry);
+    gDPSetFillColor(gDisplayListHead++, color);
+    gDPFillRectangle(gDisplayListHead++, vpUlx, vpUly, vpLrx, vpLry);
 
     gDPPipeSync(gDisplayListHead++);
 
@@ -193,9 +195,11 @@ void draw_screen_borders(void) {
     gDPSetFillColor(gDisplayListHead++, GPACK_RGBA5551(0, 0, 0, 0) << 16 | GPACK_RGBA5551(0, 0, 0, 0));
 
 #if BORDER_HEIGHT != 0
-    gDPFillRectangle(gDisplayListHead++, 0, 0, SCREEN_WIDTH - 1, BORDER_HEIGHT - 1);
-    gDPFillRectangle(gDisplayListHead++, 0, SCREEN_HEIGHT - BORDER_HEIGHT, SCREEN_WIDTH - 1,
-                     SCREEN_HEIGHT - 1);
+    gDPFillRectangle(gDisplayListHead++, GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(0), 0,
+                     GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(0) - 1, BORDER_HEIGHT - 1);
+    gDPFillRectangle(gDisplayListHead++,
+                     GFX_DIMENSIONS_RECT_FROM_LEFT_EDGE(0), SCREEN_HEIGHT - BORDER_HEIGHT,
+                     GFX_DIMENSIONS_RECT_FROM_RIGHT_EDGE(0) - 1, SCREEN_HEIGHT - 1);
 #endif
 }
 
@@ -219,22 +223,20 @@ void create_task_structure(void) {
     gGfxSPTask->msgqueue = &D_80339CB8;
     gGfxSPTask->msg = (OSMesg) 2;
     gGfxSPTask->task.t.type = M_GFXTASK;
-
+#if TARGET_N64
+    gGfxSPTask->task.t.ucode_boot = rspF3DBootStart;
+    gGfxSPTask->task.t.ucode_boot_size = ((u8 *) rspF3DBootEnd - (u8 *) rspF3DBootStart);
+    gGfxSPTask->task.t.flags = 0;
+    gGfxSPTask->task.t.ucode = rspF3DStart;
+    gGfxSPTask->task.t.ucode_data = rspF3DDataStart;
+#endif
     gGfxSPTask->task.t.ucode_size = SP_UCODE_SIZE; // (this size is ignored)
     gGfxSPTask->task.t.ucode_data_size = SP_UCODE_DATA_SIZE;
     gGfxSPTask->task.t.dram_stack = (u64 *) gGfxSPTaskStack;
     gGfxSPTask->task.t.dram_stack_size = SP_DRAM_STACK_SIZE8;
-    #ifdef VERSION_EU
-    // terrible hack
-    gGfxSPTask->task.t.output_buff =
-        (u64 *)((u8 *) gGfxSPTaskOutputBuffer - 0x670 + 0x280);
-    gGfxSPTask->task.t.output_buff_size =
-        (u64 *)((u8 *) gGfxSPTaskOutputBuffer+ 0x280 + 0x17790);
-    #else
     gGfxSPTask->task.t.output_buff = gGfxSPTaskOutputBuffer;
     gGfxSPTask->task.t.output_buff_size =
         (u64 *)((u8 *) gGfxSPTaskOutputBuffer + sizeof(gGfxSPTaskOutputBuffer));
-    #endif
     gGfxSPTask->task.t.data_ptr = (u64 *) &gGfxPool->buffer;
     gGfxSPTask->task.t.data_size = entries * sizeof(Gfx);
     gGfxSPTask->task.t.yield_data_ptr = (u64 *) gGfxSPTaskYieldBuffer;
@@ -263,9 +265,33 @@ void end_master_display_list(void) {
     create_task_structure();
 }
 
-//void draw_reset_bars(void) { // TARGET_64 only
-// Stubbed. Only N64 target uses this
-// }
+void draw_reset_bars(void) {
+    s32 sp24;
+    s32 sp20;
+    s32 fbNum;
+    u64 *sp18;
+
+    if (gResetTimer != 0 && D_8032C648 < 15) {
+        if (sCurrFBNum == 0) {
+            fbNum = 2;
+        } else {
+            fbNum = sCurrFBNum - 1;
+        }
+
+        sp18 = (u64 *) PHYSICAL_TO_VIRTUAL(gPhysicalFrameBuffers[fbNum]);
+        sp18 += D_8032C648++ * (SCREEN_WIDTH / 4);
+
+        for (sp24 = 0; sp24 < ((SCREEN_HEIGHT / 16) + 1); sp24++) {
+            // Must be on one line to match -O2
+            for (sp20 = 0; sp20 < (SCREEN_WIDTH / 4); sp20++) *sp18++ = 0;
+            sp18 += ((SCREEN_WIDTH / 4) * 14);
+        }
+    }
+
+    osWritebackDCacheAll();
+    osRecvMesg(&gGameVblankQueue, &D_80339BEC, OS_MESG_BLOCK);
+    osRecvMesg(&gGameVblankQueue, &D_80339BEC, OS_MESG_BLOCK);
+}
 
 void rendering_init(void) {
     gGfxPool = &gGfxPools[0];
@@ -459,72 +485,36 @@ void read_controller_inputs(void) {
     if (gControllerBits) {
         osRecvMesg(&gSIEventMesgQueue, &D_80339BEC, OS_MESG_BLOCK);
         osContGetReadData(&gControllerPads[0]);
+#ifdef VERSION_SH
+        release_rumble_pak_control();
+#endif
     }
     run_demo_inputs();
 
-    #ifdef BETTERCAMERA
-    for (i = 0; i < 2; i++) 
-    {
+    for (i = 0; i < 2; i++) {
         struct Controller *controller = &gControllers[i];
 
-        if (i==1)   // This is related to the analog camera control, using a P2 controller hack. P2 will no longer be correctly available for multiplayer.
-        {
-            controller->rawStickX = c_rightx;
-            controller->rawStickY = c_righty;
-            controller->stickX = c_rightx;
-            controller->stickY = c_righty;
-        }
-        else
-        {
-            // if we're receiving inputs, update the controller struct
-            // with the new button info.
-            if (controller->controllerData != NULL) {
-                controller->rawStickX = controller->controllerData->stick_x;
-                controller->rawStickY = controller->controllerData->stick_y;
-                controller->buttonPressed = controller->controllerData->button
+        // if we're receiving inputs, update the controller struct
+        // with the new button info.
+        if (controller->controllerData != NULL) {
+            controller->rawStickX = controller->controllerData->stick_x;
+            controller->rawStickY = controller->controllerData->stick_y;
+            controller->buttonPressed = controller->controllerData->button
                                         & (controller->controllerData->button ^ controller->buttonDown);
-                // 0.5x A presses are a good meme
-                controller->buttonDown = controller->controllerData->button;
-                adjust_analog_stick(controller);
-            } else // otherwise, if the controllerData is NULL, 0 out all of the inputs.
-            {
-                controller->rawStickX = 0;
-                controller->rawStickY = 0;
-                controller->buttonPressed = 0;
-                controller->buttonDown = 0;
-                controller->stickX = 0;
-                controller->stickY = 0;
-                controller->stickMag = 0;
-            }
+            // 0.5x A presses are a good meme
+            controller->buttonDown = controller->controllerData->button;
+            adjust_analog_stick(controller);
+        } else // otherwise, if the controllerData is NULL, 0 out all of the inputs.
+        {
+            controller->rawStickX = 0;
+            controller->rawStickY = 0;
+            controller->buttonPressed = 0;
+            controller->buttonDown = 0;
+            controller->stickX = 0;
+            controller->stickY = 0;
+            controller->stickMag = 0;
         }
-
     }
-    #else
-    for (i = 0; i < 2; i++) {
-            struct Controller *controller = &gControllers[i];
-
-            // if we're receiving inputs, update the controller struct
-            // with the new button info.
-            if (controller->controllerData != NULL) {
-                controller->rawStickX = controller->controllerData->stick_x;
-                controller->rawStickY = controller->controllerData->stick_y;
-                controller->buttonPressed = controller->controllerData->button
-                                            & (controller->controllerData->button ^ controller->buttonDown);
-                // 0.5x A presses are a good meme
-                controller->buttonDown = controller->controllerData->button;
-                adjust_analog_stick(controller);
-            } else // otherwise, if the controllerData is NULL, 0 out all of the inputs.
-            {
-                controller->rawStickX = 0;
-                controller->rawStickY = 0;
-                controller->buttonPressed = 0;
-                controller->buttonDown = 0;
-                controller->stickX = 0;
-                controller->stickY = 0;
-                controller->stickMag = 0;
-            }
-        }
-    #endif
 
     // For some reason, player 1's inputs are copied to player 3's port. This
     // potentially may have been a way the developers "recorded" the inputs
@@ -562,18 +552,15 @@ void init_controllers(void) {
         if (gControllerBits & (1 << port)) {
             // the game allows you to have just 1 controller plugged
             // into any port in order to play the game. this was probably
-            // so if any of the ports didnt work, you can have controllers
+            // so if any of the ports didn't work, you can have controllers
             // plugged into any of them and it will work.
+#ifdef VERSION_SH
             gControllers[cont].port = port;
+#endif
             gControllers[cont].statusData = &gControllerStatuses[port];
             gControllers[cont++].controllerData = &gControllerPads[port];
         }
     }
-
-#ifdef BETTERCAMERA
-    // load bettercam settings from the config file
-    newcam_init_settings();
-#endif
 }
 
 void setup_game_memory(void) {
@@ -588,51 +575,73 @@ void setup_game_memory(void) {
     gPhysicalFrameBuffers[2] = VIRTUAL_TO_PHYSICAL(gFrameBuffer2);
     D_80339CF0 = main_pool_alloc(0x4000, MEMORY_POOL_LEFT);
     set_segment_base_addr(17, (void *) D_80339CF0);
-    func_80278A78(&D_80339D10, gMarioAnims, D_80339CF0);
+    func_80278A78(&D_80339D10, gMarioAnims, (struct Animation*) D_80339CF0);
     D_80339CF4 = main_pool_alloc(2048, MEMORY_POOL_LEFT);
     set_segment_base_addr(24, (void *) D_80339CF4);
-    func_80278A78(&gDemo, gDemoInputs, D_80339CF4);
+    func_80278A78(&gDemo, gDemoInputs, (struct Animation*) D_80339CF4);
     load_segment(0x10, _entrySegmentRomStart, _entrySegmentRomEnd, MEMORY_POOL_LEFT);
     load_segment_decompress(2, _segment2_mio0SegmentRomStart, _segment2_mio0SegmentRomEnd);
+
+    // TODO: Move this somewhere else?
+    get_level_main_scripts_entry();
 }
 
-
+#ifndef TARGET_N64
 static struct LevelCommand *levelCommandAddr;
+#endif
 
 // main game loop thread. runs forever as long as the game
 // continues.
 void thread5_game_loop(UNUSED void *arg) {
+#ifdef TARGET_N64
+    struct LevelCommand *levelCommandAddr;
+#endif
 
     setup_game_memory();
+#ifdef VERSION_SH
     init_rumble_pak_scheduler_queue();
+#endif
     init_controllers();
+#ifdef VERSION_SH
     create_thread_6();
+#endif
     save_file_load_all();
 
-    set_vblank_handler(2, &gGameVblankHandler, &gGameVblankQueue, (OSMesg) 1);
+    set_vblank_handler(2, &gGameVblankHandler, &gGameVblankQueue, (void**) (OSMesg) 1);
 
     // point levelCommandAddr to the entry point into the level script data.
-    levelCommandAddr = segmented_to_virtual(level_script_entry);
+    levelCommandAddr = (struct LevelCommand*) segmented_to_virtual(get_level_script_entry());
 
     play_music(SEQ_PLAYER_SFX, SEQUENCE_ARGS(0, SEQ_SOUND_PLAYER), 0);
     set_sound_mode(save_file_get_sound_mode());
 
+#ifdef TARGET_N64
+    rendering_init();
+
+    while (1) {
+#else
     gGlobalTimer++;
 }
 
 void game_loop_one_iteration(void) {
+#endif
         // if the reset timer is active, run the process to reset the game.
-        //if (gResetTimer) {
-//	            draw_reset_bars(); (N64 target only?)
-//}
-
+        if (gResetTimer) {
+            draw_reset_bars();
+#ifdef TARGET_N64
+            continue;
+#else
+            return;
+#endif
+        }
         profiler_log_thread5_time(THREAD5_START);
 
         // if any controllers are plugged in, start read the data for when
         // read_controller_inputs is called later.
         if (gControllerBits) {
-
-            // block_until_rumble_pak_free();
+#ifdef VERSION_SH
+            block_until_rumble_pak_free();
+#endif
             osContStartReadData(&gSIEventMesgQueue);
         }
 
@@ -648,5 +657,7 @@ void game_loop_one_iteration(void) {
             // amount of free space remaining.
             print_text_fmt_int(180, 20, "BUF %d", gGfxPoolEnd - (u8 *) gDisplayListHead);
         }
-// } was here for  ifdef targ 64
+#ifdef TARGET_N64
+    }
+#endif
 }

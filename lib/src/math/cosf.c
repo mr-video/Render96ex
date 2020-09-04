@@ -33,7 +33,6 @@ static const du pilo = {
 static const fu zero = {0.0};
 extern const fu NAN;
 
-#ifndef OSX_BUILD 
 float cosf(float x)
 {
 	double dx;  // double x
@@ -93,5 +92,3 @@ float cosf(float x)
 
 	return zero.f;
 }
-#endif // OSX_BUILD cannot use this
-

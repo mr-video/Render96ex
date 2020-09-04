@@ -15,6 +15,14 @@ branch, make your changes to the code (but do not commit), then run `tools/creat
 
 The following enhancements are included in this directory:
 
+## 60 FPS - `60fps.patch`
+
+This patch is only supported when not targeting N64. It also currently requires a 64-bit platform. If compiled for a 32-bit platform, the game will run out of memory and crash.
+
+This allows the game to be rendered at 60 FPS instead of 30 FPS by interpolation.
+
+The Mario head intro is the only exception which is still rendered at 30 FPS.
+
 ## Crash Screen - `crash.patch`
 
 This enhancement provides a crash screen that is displayed when the code throws a hardware exception. This may be useful for diagnosing crashes in game code.
@@ -25,6 +33,10 @@ This allows you to draw 3D boxes for debugging purposes.
 
 Call the `debug_box` function whenever you want to draw one. `debug_box` by default takes two arguments: a center and bounds vec3f. This will draw a box starting from the point (center - bounds) to (center + bounds).
 Use `debug_box_rot` to draw a box rotated in the xz-plane. If you want to draw a box by specifying min and max points, use `debug_box_pos` instead.
+
+## FPS Counter - `fps.patch`
+
+This patch provides an in-game FPS counter to measure the frame rate.
 
 ## iQue Player Support - `ique_support.patch`
 

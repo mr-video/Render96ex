@@ -1,24 +1,24 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
-#include "sm64.h"
 #include "audio/external.h"
-#include "game/game_init.h"
-#include "game/memory.h"
-#include "game/area.h"
-#include "game/save_file.h"
-#include "game/object_helpers.h"
-#include "game/ingame_menu.h"
-#include "game/level_update.h"
-#include "game/segment2.h"
-#include "game/segment7.h"
-#include "game/object_list_processor.h"
+#include "behavior_data.h"
 #include "engine/behavior_script.h"
 #include "engine/graph_node.h"
-#include "behavior_data.h"
-#include "text_strings.h"
-#include "star_select.h"
 #include "eu_translation.h"
-#include <prevent_bss_reordering.h>
+#include "game/area.h"
+#include "game/game_init.h"
+#include "game/ingame_menu.h"
+#include "game/level_update.h"
+#include "game/memory.h"
+#include "game/object_helpers.h"
+#include "game/object_list_processor.h"
+#include "game/save_file.h"
+#include "game/segment2.h"
+#include "game/segment7.h"
+#include "sm64.h"
+#include "star_select.h"
+#include "text_strings.h"
+#include "prevent_bss_reordering.h"
 
 /**
  * @file star_select.c
@@ -269,9 +269,9 @@ void print_act_selector_strings(void) {
     u8 *currLevelName;
     u8 **actNameTbl;
 #else
-    u8 **levelNameTbl = segmented_to_virtual(seg2_course_name_table);
-    u8 *currLevelName = segmented_to_virtual(levelNameTbl[gCurrCourseNum - 1]);
-    u8 **actNameTbl = segmented_to_virtual(seg2_act_name_table);
+    u8 **levelNameTbl = (u8**) segmented_to_virtual(seg2_course_name_table);
+    u8 *currLevelName = (u8*) segmented_to_virtual(levelNameTbl[gCurrCourseNum - 1]);
+    u8 **actNameTbl = (u8**) segmented_to_virtual(seg2_act_name_table);
 #endif
     u8 *selectedActName;
 #ifndef VERSION_EU
@@ -342,7 +342,7 @@ void print_act_selector_strings(void) {
     gDPSetEnvColor(gDisplayListHead++, 0, 0, 0, 255);
     // Print the name of the selected act.
     if (sVisibleStars != 0) {
-        selectedActName = segmented_to_virtual(actNameTbl[(gCurrCourseNum - 1) * 6 + sSelectedActIndex]);
+        selectedActName = (u8*) segmented_to_virtual(actNameTbl[(gCurrCourseNum - 1) * 6 + sSelectedActIndex]);
 
 #ifdef VERSION_EU
         print_menu_generic_string(get_str_x_pos_from_center(ACT_NAME_X, selectedActName, 8.0f), 81, selectedActName);
@@ -394,6 +394,10 @@ s32 lvl_init_act_selector_values_and_stars(UNUSED s32 arg, UNUSED s32 unused) {
     sInitSelectedActNum = 0;
     sVisibleStars = 0;
     sActSelectorMenuTimer = 0;
+#ifdef NO_SEGMENTED_MEMORY
+    sSelectedActIndex = 0;
+    sSelectableStarIndex = 0;
+#endif
     sObtainedStars = save_file_get_course_star_count(gCurrSaveFileNum - 1, gCurrCourseNum - 1);
 
     // Don't count 100 coin star
@@ -409,7 +413,7 @@ s32 lvl_init_act_selector_values_and_stars(UNUSED s32 arg, UNUSED s32 unused) {
 
 /**
  * Loads act selector button actions with selected act value checks.
- * Also updates objects and returns act number selected after is choosen.
+ * Also updates objects and returns act number selected after is chosen.
  */
 s32 lvl_update_obj_and_load_act_button_actions(UNUSED s32 arg, UNUSED s32 unused) {
     if (sActSelectorMenuTimer >= 11) {

@@ -54,11 +54,9 @@ static void triplet_butterfly_act_init(void) {
 }
 
 static void triplet_butterfly_act_wander(void) {
-#ifndef NODRAWINGDISTANCE
     if (o->oDistanceToMario > 1500.0f) {
         obj_mark_for_deletion(o);
     } else {
-#endif
         approach_f32_ptr(&o->oTripletButterflySpeed, 8.0f, 0.5f);
         if (o->oTimer < 60) {
             o->oTripletButterflyTargetYaw = cur_obj_angle_to_home();
@@ -84,9 +82,7 @@ static void triplet_butterfly_act_wander(void) {
 
         obj_move_pitch_approach(o->oTripletButterflyTargetPitch, 400);
         cur_obj_rotate_yaw_toward(o->oTripletButterflyTargetYaw, random_linear_offset(400, 800));
-#ifndef NODRAWINGDISTANCE
     }
-#endif
 }
 
 static void triplet_butterfly_act_activate(void) {
@@ -124,7 +120,7 @@ static void triplet_butterfly_act_explode(void) {
 
     obj_check_attacks(&sTripletButterflyExplodeHitbox, -1);
 
-    if (o->oAction == -1 || (o->oMoveFlags & 0x00000200) || o->oTimer >= 158) {
+    if (o->oAction == -1 || (o->oMoveFlags & OBJ_MOVE_HIT_WALL) || o->oTimer >= 158) {
         o->oPosY += o->oGraphYOffset;
         spawn_object(o, MODEL_EXPLOSION, bhvExplosion);
         obj_mark_for_deletion(o);

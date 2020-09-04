@@ -1,36 +1,38 @@
 #include <ultra64.h>
-#include <macros.h>
 #include <stdarg.h>
 #include <stdio.h>
 
 #ifndef VERSION_EU
 #include "prevent_bss_reordering.h"
 #endif
-#include "gd_types.h"
-#include "gd_macros.h"
-#include "dynlists/dynlists.h"
-
-#include "renderer.h"
-#include "gd_main.h"
-#include "gd_memory.h"
-#include "sfx.h"
-#include "draw_objects.h"
-#include "objects.h"
-#include "dynlist_proc.h"
 #include "debug_utils.h"
-#include "skin.h"
+#include "draw_objects.h"
+#include "dynlist_proc.h"
+#include "dynlists/dynlists.h"
+#include "gd_macros.h"
+#include "gd_main.h"
 #include "gd_math.h"
+#include "gd_memory.h"
+#include "gd_types.h"
+#include "macros.h"
+#include "objects.h"
+#include "renderer.h"
+#include "sfx.h"
 #include "shape_helper.h"
-
-#include "config.h"
-#include "gfx_dimensions.h"
+#include "skin.h"
 
 #define MAX_GD_DLS 1000
 #define OS_MESG_SI_COMPLETE 0x33333333
 
+#ifndef NO_SEGMENTED_MEMORY
+#define GD_VIRTUAL_TO_PHYSICAL(addr) ((uintptr_t)(addr) &0x0FFFFFFF)
+#define GD_LOWER_24(addr) ((uintptr_t)(addr) &0x00FFFFFF)
+#define GD_LOWER_29(addr) (((uintptr_t)(addr)) & 0x1FFFFFFF)
+#else
 #define GD_VIRTUAL_TO_PHYSICAL(addr) (addr)
 #define GD_LOWER_24(addr) ((uintptr_t)(addr))
 #define GD_LOWER_29(addr) (((uintptr_t)(addr)))
+#endif
 
 #define MTX_INTPART_PACK(w1, w2) (((w1) &0xFFFF0000) | (((w2) >> 16) & 0xFFFF))
 #define MTX_FRACPART_PACK(w1, w2) ((((w1) << 16) & 0xFFFF0000) | ((w2) &0xFFFF))
@@ -129,7 +131,7 @@ static struct ObjGroup *sCarSceneGrp;   // @ 801BB0B8
 static s32 D_801BB0BC; // vtx's to load into RPD? Vtx len in GD Dl and in the lower bank (AF30)
 static struct ObjView *sYoshiSceneView; // @ 801BB0C0
 static s32 D_801BB0C4;                  // first offset into D_801BAF30
-static struct ObjView *sMSceneView;     // @ 801BB0C8; mario scene view
+static struct ObjView *sMSceneView;     // @ 801BB0C8; Mario scene view
 static s32 D_801BB0CC;                  // Vtx start in GD Dl
 static struct ObjView *sCarSceneView;   // @ 801BB0D0
 static s32 sUpdateYoshiScene;           // @ 801BB0D4; update dl Vtx from ObjVertex?
@@ -493,7 +495,6 @@ ALIGNED8 static u8 gd_texture_sparkle_4[] = {
 
 //! No reference to this texture. Two DL's uses the same previous texture
 //  instead of using this texture.
-// Fixed via setting TEXTURE_FIX to 1.
 ALIGNED8 static u8 gd_texture_sparkle_5[] = {
 #include "textures/intro_raw/sparkle_5.rgba16.inc.c"
 };
@@ -570,22 +571,12 @@ static Gfx gd_dl_red_sparkle_4[] = {
     gsSPBranchList(gd_dl_sparkle),
 };
 
-#ifndef TEXTURE_FIX
 static Gfx gd_dl_red_sparkle_4_dup[] ={
     gsDPPipeSync(),
     gsSPDisplayList(gd_dl_sparkle_red_color),
     gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gd_texture_sparkle_4), // 4 again, correct texture would be 5
     gsSPBranchList(gd_dl_sparkle),
 };
-
-#else
-static Gfx gd_dl_red_sparkle_5[] ={
-    gsDPPipeSync(),
-    gsSPDisplayList(gd_dl_sparkle_red_color),
-    gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gd_texture_sparkle_5),
-    gsSPBranchList(gd_dl_sparkle),
-};
-#endif
 
 static Gfx gd_dl_silver_sparkle_0[] = {
     gsDPPipeSync(),
@@ -622,22 +613,12 @@ static Gfx gd_dl_silver_sparkle_4[] = {
     gsSPBranchList(gd_dl_sparkle),
 };
 
-#ifndef TEXTURE_FIX
 static Gfx gd_dl_silver_sparkle_4_dup[] = {
     gsDPPipeSync(),
     gsSPDisplayList(gd_dl_sparkle_white_color),
     gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gd_texture_sparkle_4), // 4 again, correct texture would be 5
     gsSPBranchList(gd_dl_sparkle),
 };
-
-#else
-static Gfx gd_dl_silver_sparkle_5[] = {
-    gsDPPipeSync(),
-    gsSPDisplayList(gd_dl_sparkle_white_color),
-    gsDPSetTextureImage(G_IM_FMT_RGBA, G_IM_SIZ_16b, 1, gd_texture_sparkle_5),
-    gsSPBranchList(gd_dl_sparkle),
-};
-#endif
 
 static Gfx *gd_red_sparkle_dl_array[] = {
     gd_dl_red_sparkle_4,
@@ -650,13 +631,8 @@ static Gfx *gd_red_sparkle_dl_array[] = {
     gd_dl_red_sparkle_1,
     gd_dl_red_sparkle_0,
     gd_dl_red_sparkle_0,
-#ifndef TEXTURE_FIX
     gd_dl_red_sparkle_4_dup,
     gd_dl_red_sparkle_4_dup,
-#else
-    gd_dl_red_sparkle_5,
-    gd_dl_red_sparkle_5,
-#endif
 };
 
 static Gfx *gd_silver_sparkle_dl_array[] = {
@@ -670,13 +646,8 @@ static Gfx *gd_silver_sparkle_dl_array[] = {
     gd_dl_silver_sparkle_1,
     gd_dl_silver_sparkle_0,
     gd_dl_silver_sparkle_0,
-#ifndef TEXTURE_FIX
     gd_dl_silver_sparkle_4_dup,
     gd_dl_silver_sparkle_4_dup,
-#else
-    gd_dl_silver_sparkle_5,
-    gd_dl_silver_sparkle_5,
-#endif
 };
 
 static Gfx gd_texture3_dummy_aligner1[] = {
@@ -1166,7 +1137,7 @@ void gdm_init(void *blockpool, u32 size) {
     size = (size - 8) & ~7;
     // Align to next double word boundry?
     blockpool = (void *) (((uintptr_t) blockpool + 8) & ~7);
-    sMemBlockPoolBase = blockpool;
+    sMemBlockPoolBase = (u8*) blockpool;
     sMemBlockPoolSize = size;
     sMemBlockPoolUsed = 0;
     sAllocMemory = 0;
@@ -1231,7 +1202,7 @@ void gdm_maketestdl(s32 id) {
         case 1:
             reset_nets_and_gadgets(sYoshiSceneGrp);
             break;
-        case 2: // normal mario head
+        case 2: // normal Mario head
             if (sMarioSceneGrp == NULL) {
                 load_mario_head(animate_mario_head_normal);
                 sMarioSceneGrp = gMarioFaceGrp; // gMarioFaceGrp set by load_mario_head
@@ -1239,7 +1210,7 @@ void gdm_maketestdl(s32 id) {
             }
             sMSceneView = make_view_withgrp("mscene", sMarioSceneGrp);
             break;
-        case 3: // game over mario head
+        case 3: // game over Mario head
             if (sMarioSceneGrp == NULL) {
                 load_mario_head(animate_mario_head_gameover);
                 sMarioSceneGrp = gMarioFaceGrp;
@@ -1326,7 +1297,7 @@ void *gdm_gettestdl(s32 id) {
             //! @bug Code treats `sYoshiSceneView` as group; not called in game though
             apply_to_obj_types_in_group(OBJ_TYPE_VIEWS, (applyproc_t) update_view,
                                         (struct ObjGroup *) sYoshiSceneView);
-            dobj = d_use_obj("yoshi_scene");
+            dobj = d_use_obj((DynId) "yoshi_scene");
             gddl = sGdDLArray[((struct ObjView *) dobj)->gdDlNum];
             sUpdateYoshiScene = TRUE;
             break;
@@ -1334,7 +1305,7 @@ void *gdm_gettestdl(s32 id) {
             if (sYoshiSceneGrp == NULL) {
                 fatal_printf("gdm_gettestdl(): DL number %d undefined", id);
             }
-            dobj = d_use_obj("yoshi_sh_l1");
+            dobj = d_use_obj((DynId) "yoshi_sh_l1");
             gddl = sGdDLArray[((struct ObjShape *) dobj)->gdDls[gGdFrameBuf]];
             sUpdateYoshiScene = TRUE;
             break;
@@ -1357,14 +1328,14 @@ void *gdm_gettestdl(s32 id) {
             //! @bug Code treats `sCarSceneView` as group; not called in game though
             apply_to_obj_types_in_group(OBJ_TYPE_VIEWS, (applyproc_t) update_view,
                                         (struct ObjGroup *) sCarSceneView);
-            dobj = d_use_obj("car_scene");
+            dobj = d_use_obj((DynId) "car_scene");
             gddl = sGdDLArray[((struct ObjView *) dobj)->gdDlNum];
             sUpdateCarScene = TRUE;
             break;
         case 5:
             sActiveView = sScreenView2;
             set_gd_mtx_parameters(G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
-            dobj = d_use_obj("testnet2");
+            dobj = d_use_obj((DynId) "testnet2");
             sCarGdDlNum = gd_startdisplist(8);
 
             if (sCarGdDlNum == 0) {
@@ -1392,7 +1363,7 @@ void gdm_getpos(s32 id, struct GdVec3f *dst) {
     switch (id) {
         case 5:
             set_gd_mtx_parameters(G_MTX_MODELVIEW | G_MTX_LOAD | G_MTX_PUSH);
-            dobj = d_use_obj("testnet2");
+            dobj = d_use_obj((DynId)"testnet2");
             dst->x = ((struct ObjNet *) dobj)->unk14.x;
             dst->y = ((struct ObjNet *) dobj)->unk14.y;
             dst->z = ((struct ObjNet *) dobj)->unk14.z;
@@ -1429,7 +1400,7 @@ void fatal_no_dl_mem(void) {
 struct GdDisplayList *alloc_displaylist(u32 id) {
     struct GdDisplayList *gdDl;
 
-    gdDl = gd_malloc_perm(sizeof(struct GdDisplayList));
+    gdDl = (struct GdDisplayList*) gd_malloc_perm(sizeof(struct GdDisplayList));
     if (gdDl == NULL) {
         fatal_no_dl_mem();
     }
@@ -1489,7 +1460,7 @@ struct GdDisplayList *new_gd_dl(s32 id, s32 gfxs, s32 verts, s32 mtxs, s32 light
     }
     dl->curVtxIdx = 0;
     dl->totalVtx = verts;
-    if ((dl->vtx = gd_malloc_perm(verts * sizeof(Vtx))) == NULL) {
+    if ((dl->vtx = (Vtx*) gd_malloc_perm(verts * sizeof(Vtx))) == NULL) {
         fatal_no_dl_mem();
     }
 
@@ -1498,7 +1469,7 @@ struct GdDisplayList *new_gd_dl(s32 id, s32 gfxs, s32 verts, s32 mtxs, s32 light
     }
     dl->curMtxIdx = 0;
     dl->totalMtx = mtxs;
-    if ((dl->mtx = gd_malloc_perm(mtxs * sizeof(Mtx))) == NULL) {
+    if ((dl->mtx = (Mtx*) gd_malloc_perm(mtxs * sizeof(Mtx))) == NULL) {
         fatal_no_dl_mem();
     }
 
@@ -1507,7 +1478,7 @@ struct GdDisplayList *new_gd_dl(s32 id, s32 gfxs, s32 verts, s32 mtxs, s32 light
     }
     dl->curLightIdx = 0;
     dl->totalLights = lights;
-    if ((dl->light = gd_malloc_perm(lights * sizeof(Lights4))) == NULL) {
+    if ((dl->light = (Lights4*) gd_malloc_perm(lights * sizeof(Lights4))) == NULL) {
         fatal_no_dl_mem();
     }
 
@@ -1516,7 +1487,7 @@ struct GdDisplayList *new_gd_dl(s32 id, s32 gfxs, s32 verts, s32 mtxs, s32 light
     }
     dl->curGfxIdx = 0;
     dl->totalGfx = gfxs;
-    if ((dl->gfx = gd_malloc_perm(gfxs * sizeof(Gfx))) == NULL) {
+    if ((dl->gfx = (Gfx*) gd_malloc_perm(gfxs * sizeof(Gfx))) == NULL) {
         fatal_no_dl_mem();
     }
 
@@ -1525,7 +1496,7 @@ struct GdDisplayList *new_gd_dl(s32 id, s32 gfxs, s32 verts, s32 mtxs, s32 light
     }
     dl->curVpIdx = 0;
     dl->totalVp = vps;
-    if ((dl->vp = gd_malloc_perm(vps * sizeof(Vp))) == NULL) {
+    if ((dl->vp = (Vp*) gd_malloc_perm(vps * sizeof(Vp))) == NULL) {
         fatal_no_dl_mem();
     }
 
@@ -1716,10 +1687,28 @@ u32 Unknown8019EC88(Gfx *dl, UNUSED s32 arg1) {
 }
 
 /* 24D4C4 -> 24D63C; orig name: func_8019ECF4 */
-void mat4_to_mtx(const Mat4f *src, Mtx *dst) {
+void mat4_to_mtx(Mat4f *src, Mtx *dst) {
+#ifndef GBI_FLOATS
+    s32 i; // 14
+    s32 j; // 10
+    s32 w1;
+    s32 w2;
+    s32 *mtxInt = (s32 *) dst->m[0]; // s32 part
+    s32 *mtxFrc = (s32 *) dst->m[2]; // frac part
 
-    guMtxF2L(src, dst);
-
+    for (i = 0; i < 4; i++) {
+        for (j = 0; j < 2; j++) {
+            w1 = (s32)((*src)[i][j * 2] * 65536.0f);
+            w2 = (s32)((*src)[i][j * 2 + 1] * 65536.0f);
+            *mtxInt = MTX_INTPART_PACK(w1, w2);
+            mtxInt++;
+            *mtxFrc = MTX_FRACPART_PACK(w1, w2);
+            mtxFrc++;
+        }
+    }
+#else
+    guMtxF2L(*src, dst);
+#endif
 }
 
 /* 24D63C -> 24D6E4; orig name: func_8019EE6C */
@@ -1790,8 +1779,7 @@ void func_8019F2C4(f32 arg0, s8 arg1) {
 }
 
 /* 24DAE8 -> 24E1A8 */
-void func_8019F318(struct ObjCamera *cam, f32 arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, f32 arg6,
-                   f32 arg7) {
+void func_8019F318(struct ObjCamera *cam, f32 arg1, f32 arg2, f32 arg3, f32 arg4, f32 arg5, f32 arg6, f32 arg7) {
     LookAt *lookat; // 5c
 
     arg7 *= RAD_PER_DEG;
@@ -1879,7 +1867,7 @@ void check_tri_display(s32 vtxcount) {
 }
 
 /* 24E230 -> 24E6C0; orig name: func_8019FA60 */
-Vtx *make_Vtx_if_new(f32 x, f32 y, f32 z, f32 alpha) {
+Vtx *make_vtx_if_new(f32 x, f32 y, f32 z, f32 alpha) {
     Vtx *vtx = NULL; // 1c
     s32 i;           // 18
 
@@ -1929,9 +1917,9 @@ void add_tri_to_dl(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, f32 x3, f32 y
     Vtx *vtx; // 24
 
     vtx = &DL_CURRENT_VTX(sCurrentGdDl);
-    make_Vtx_if_new(x1, y1, z1, 1.0f);
-    make_Vtx_if_new(x2, y2, z2, 1.0f);
-    make_Vtx_if_new(x3, y3, z3, 1.0f);
+    make_vtx_if_new(x1, y1, z1, 1.0f);
+    make_vtx_if_new(x2, y2, z2, 1.0f);
+    make_vtx_if_new(x3, y3, z3, 1.0f);
 
     gSPVertex(next_gfx(), osVirtualToPhysical(vtx), 3, 0);
     gSP1Triangle(next_gfx(), 0, 1, 2, 0);
@@ -2290,7 +2278,6 @@ void gddl_is_loading_shine_dl(s32 dlLoad) {
     } else {
         gSPTexture(next_gfx(), 0x8000, 0x8000, 0, G_TX_RENDERTILE, G_OFF);
         gDPSetCombineMode(next_gfx(), G_CC_SHADE, G_CC_SHADE);
-        ;
     }
 }
 
@@ -2334,7 +2321,9 @@ void start_view_dl(struct ObjView *view) {
         uly = lry - 1.0f;
     }
 
-    // gDPSetScissor(next_gfx(), G_SC_NON_INTERLACE, ulx, uly, lrx, lry); // N64 only
+#ifdef TARGET_N64
+    gDPSetScissor(next_gfx(), G_SC_NON_INTERLACE, ulx, uly, lrx, lry);
+#endif
     gSPClearGeometryMode(next_gfx(), 0xFFFFFFFF);
     gSPSetGeometryMode(next_gfx(), G_LIGHTING | G_CULL_BACK | G_SHADING_SMOOTH | G_SHADE);
     if (view->flags & VIEW_ALLOC_ZBUF) {
@@ -2353,9 +2342,7 @@ void parse_p1_controller(void) {
     OSContPad *p1contPrev;    // 30
     u8 *gdCtrlBytes;          // 2C
     u8 *prevGdCtrlBytes;      // 28
-    f32 aspect = GFX_DIMENSIONS_ASPECT_RATIO;
-    aspect *= 0.75;
-	
+
     gdctrl = &gGdCtrl;
     gdCtrlBytes = (u8 *) gdctrl;
     prevGdCtrlBytes = (u8 *) gdctrl->prevFrame;
@@ -2437,11 +2424,13 @@ void parse_p1_controller(void) {
     }
 
     for (i = 0; ((s32) i) < D_801A86F0; i++) {
-        D_801BD7A0[i]->flags &= ~VIEW_UPDATE;
+      D_801BD7A0[i]->flags = (enum GdViewFlags)(
+        D_801BD7A0[i]->flags & ~VIEW_UPDATE);
     }
 
     if (sNewZPresses) {
-        D_801BD7A0[sNewZPresses - 1]->flags |= VIEW_UPDATE;
+      D_801BD7A0[sNewZPresses - 1]->flags = (enum GdViewFlags)(
+        D_801BD7A0[sNewZPresses - 1]->flags | VIEW_UPDATE);
     }
     // deadzone checks?
     if (ABS(gdctrl->stickX) >= 6) {
@@ -2452,14 +2441,14 @@ void parse_p1_controller(void) {
         gdctrl->csrY -= gdctrl->stickY * 0.1; //? 0.1f
     }
     // border checks? is this for the cursor finger movement?
-    if ((f32) gdctrl->csrX < (sScreenView2->parent->upperLeft.x + (16.0f/aspect))) {
-        gdctrl->csrX = (s32)(sScreenView2->parent->upperLeft.x + (16.0f/aspect));
+    if ((f32) gdctrl->csrX < (sScreenView2->parent->upperLeft.x + 16.0f)) {
+        gdctrl->csrX = (s32)(sScreenView2->parent->upperLeft.x + 16.0f);
     }
 
     if ((f32) gdctrl->csrX
-        > (sScreenView2->parent->upperLeft.x + sScreenView2->parent->lowerRight.x - (48.0/aspect))) {
+        > (sScreenView2->parent->upperLeft.x + sScreenView2->parent->lowerRight.x - 48.0f)) {
         gdctrl->csrX =
-            (s32)(sScreenView2->parent->upperLeft.x + sScreenView2->parent->lowerRight.x - (48.0/aspect));
+            (s32)(sScreenView2->parent->upperLeft.x + sScreenView2->parent->lowerRight.x - 48.0f);
     }
 
     if ((f32) gdctrl->csrY < (sScreenView2->parent->upperLeft.y + 16.0f)) {
@@ -2779,7 +2768,7 @@ void gd_init_controllers(void) {
 }
 
 /* 252BAC -> 252BC0 */
-void Proc801A43DC(UNUSED struct GdObj *obj) {
+void func_801A43DC(UNUSED struct GdObj *obj) {
 }
 
 /* 252BC0 -> 252BE0 */
@@ -2788,18 +2777,18 @@ void *func_801A43F0(UNUSED const char *menufmt, ...) {
 }
 
 /* 252BE0 -> 252BF0 */
-void Proc801A4410(UNUSED void *arg0) {
+void func_801A4410(UNUSED void *arg0) {
 }
 
 /* 252BF0 -> 252C08 */
-void Proc801A4424(UNUSED void *arg0) {
+void func_801A4424(UNUSED void *arg0) {
 }
 
 /* 252C08 -> 252C70 */
-void func_801A4438(f32 arg0, f32 arg1, f32 arg2) {
-    D_801BB0E8.x = arg0 - (sActiveView->lowerRight.x / 2.0f);
-    D_801BB0E8.y = (sActiveView->lowerRight.y / 2.0f) - arg1;
-    D_801BB0E8.z = arg2;
+void func_801A4438(f32 x, f32 y, f32 z) {
+    D_801BB0E8.x = x - (sActiveView->lowerRight.x / 2.0f);
+    D_801BB0E8.y = (sActiveView->lowerRight.y / 2.0f) - y;
+    D_801BB0E8.z = z;
 }
 
 /* 252C70 -> 252DB4 */
@@ -2978,12 +2967,12 @@ void update_cursor(void) {
     }
 
     if (gGdCtrl.frameCount - gGdCtrl.frameAbtnPressed < 300) {
-        sHandView->flags |= VIEW_UPDATE;
+        sHandView->flags = (enum GdViewFlags) (sHandView->flags | VIEW_UPDATE);
         // by playing the sfx every frame, it will only play once as it
         // never leaves the "sfx played last frame" buffer
         gd_play_sfx(GD_SFX_HAND_APPEAR);
     } else {
-        sHandView->flags &= ~VIEW_UPDATE;
+        sHandView->flags = (enum GdViewFlags) (sHandView->flags & ~VIEW_UPDATE);
         gd_play_sfx(GD_SFX_HAND_DISAPPEAR);
     }
 
@@ -2993,9 +2982,9 @@ void update_cursor(void) {
     reset_dlnum_indices(sHandShape->gdDls[gGdFrameBuf]);
 
     if (gGdCtrl.btnApressed) {
-        gd_put_sprite((u16 *) gd_texture_hand_closed, sHandView->upperLeft.x, sHandView->upperLeft.y, 32, 32);
+        gd_put_sprite((u16 *) gd_texture_hand_closed, sHandView->upperLeft.x, sHandView->upperLeft.y, 0x20, 0x20);
     } else {
-        gd_put_sprite((u16 *) gd_texture_hand_open, sHandView->upperLeft.x, sHandView->upperLeft.y, 32, 32);
+        gd_put_sprite((u16 *) gd_texture_hand_open, sHandView->upperLeft.x, sHandView->upperLeft.y, 0x20, 0x20);
     }
     gd_enddlsplist_parent();
 
@@ -3025,9 +3014,9 @@ void Unknown801A4F58(void) {
     register s16 b;        // t2
     register s32 i;        // t3
 
-    cbufOff = sScreenView2->colourBufs[gGdFrameBuf ^ 1];
-    cbufOn = sScreenView2->colourBufs[gGdFrameBuf];
-    zbuf = sScreenView2->zbuf;
+    cbufOff = (s16*) sScreenView2->colourBufs[gGdFrameBuf ^ 1];
+    cbufOn = (s16*) sScreenView2->colourBufs[gGdFrameBuf];
+    zbuf = (u16*) sScreenView2->zbuf;
 
     for (i = 0; i < (320 * 240); i++) { // L801A4FCC
         colour = cbufOff[i];
@@ -3131,7 +3120,7 @@ void gd_init(void) {
 
     add_to_stacktrace("gd_init");
     i = (u32)(sMemBlockPoolSize - DOUBLE_SIZE_ON_64_BIT(0x3E800));
-    data = gd_allocblock(i);
+    data = (s8*) gd_allocblock(i);
     gd_add_mem_to_heap(i, data, 0x10);
     D_801BB184 = (u16) 0xff;
     D_801A867C = 0;
@@ -3189,7 +3178,7 @@ void gd_init(void) {
     sScreenView2->colour.g = 0.0f;
     sScreenView2->colour.b = 0.0f;
     sScreenView2->parent = sScreenView2;
-    sScreenView2->flags &= ~VIEW_UPDATE;
+    sScreenView2->flags = (enum GdViewFlags) (sScreenView2->flags & ~VIEW_UPDATE);
     sActiveView = sScreenView2;
 
     data = (s8 *) &gGdCtrl;
@@ -3287,7 +3276,7 @@ void Unknown801A5AE0(s32 arg0) {
 }
 
 /* 254328 -> 2543B8; orig name: func_801A5B58 */
-void set_Vtx_tc_buf(f32 tcS, f32 tcT) {
+void set_vtx_tc_buf(f32 tcS, f32 tcT) {
     sVtxCvrtTCBuf[0] = (s16)(tcS * 512.0f);
     sVtxCvrtTCBuf[1] = (s16)(tcT * 512.0f);
 }
@@ -3310,15 +3299,15 @@ void Unknown801A5C80(struct ObjGroup *parentGroup) {
     struct ObjLabel *label;      // 3c
     struct ObjGroup *debugGroup; // 38
 
-    d_start_group("debugg");
+    d_start_group((DynId) "debugg");
     label = (struct ObjLabel *) d_makeobj(D_LABEL, 0);
     d_set_rel_pos(10.0f, 230.0f, 0.0f);
     d_set_parm_ptr(PARM_PTR_CHAR, gd_strdup("FT %2.2f"));
     d_add_valptr(AsDynId(0), 0, OBJ_VALUE_FLOAT, (uintptr_t) &sTracked1FrameTime);
     label->unk30 = 3;
-    d_end_group("debugg");
+    d_end_group((DynId) "debugg");
 
-    debugGroup = (struct ObjGroup *) d_use_obj("debugg");
+    debugGroup = (struct ObjGroup *) d_use_obj((DynId) "debugg");
     make_view("debugview", (VIEW_2_COL_BUF | VIEW_ALLOC_ZBUF | VIEW_1_CYCLE | VIEW_DRAW), 2, 0, 0, 320,
               240, debugGroup);
 
@@ -3386,7 +3375,7 @@ void Unknown801A5D90(struct ObjGroup *arg0) {
             memview->colour.g = 0.0f;
             memview->colour.b = 0.0f;
             addto_group(arg0, &labelgrp->header);
-            memview->flags &= ~VIEW_UPDATE;
+            memview->flags = (enum GdViewFlags) (memview->flags & ~VIEW_UPDATE);
             func_801A5BE8(memview);
         }
     }
@@ -3399,8 +3388,8 @@ void Unknown801A5FF8(struct ObjGroup *arg0) {
     struct ObjGroup *menugrp;      // 34
     UNUSED u32 pad2C[2];
 
-    d_start_group("menug");
-    sMenuGadgets[0] = d_makeobj(D_GADGET, "menu0");
+    d_start_group((DynId) "menug");
+    sMenuGadgets[0] = d_makeobj(D_GADGET, (DynId) "menu0");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(5.0f, 0.0f, 0.0f);
     d_set_scale(100.0f, 20.0f, 0.0f);
@@ -3408,10 +3397,10 @@ void Unknown801A5FF8(struct ObjGroup *arg0) {
     d_set_colour_num(2);
     label = (struct ObjLabel *) d_makeobj(D_LABEL, AsDynId(0));
     d_set_rel_pos(5.0f, 18.0f, 0.0f);
-    d_set_parm_ptr(PARM_PTR_CHAR, "ITEM 1");
-    d_add_valptr("menu0", 0x40000, 0, (uintptr_t) NULL);
+    d_set_parm_ptr(PARM_PTR_CHAR, (void*) "ITEM 1");
+    d_add_valptr((DynId) "menu0", 0x40000, 0, (uintptr_t) NULL);
 
-    sMenuGadgets[1] = d_makeobj(D_GADGET, "menu1");
+    sMenuGadgets[1] = d_makeobj(D_GADGET, (DynId) "menu1");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(5.0f, 25.0f, 0.0f);
     d_set_scale(100.0f, 20.0f, 0.0f);
@@ -3419,10 +3408,10 @@ void Unknown801A5FF8(struct ObjGroup *arg0) {
     d_set_colour_num(4);
     label = (struct ObjLabel *) d_makeobj(D_LABEL, AsDynId(0));
     d_set_rel_pos(5.0f, 18.0f, 0.0f);
-    d_set_parm_ptr(PARM_PTR_CHAR, "ITEM 2");
-    d_add_valptr("menu1", 0x40000, 0, (uintptr_t) NULL);
+    d_set_parm_ptr(PARM_PTR_CHAR, (void *) "ITEM 2");
+    d_add_valptr((DynId) "menu1", 0x40000, 0, (uintptr_t) NULL);
 
-    sMenuGadgets[2] = d_makeobj(D_GADGET, "menu2");
+    sMenuGadgets[2] = d_makeobj(D_GADGET, (DynId) "menu2");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(5.0f, 50.0f, 0.0f);
     d_set_scale(100.0f, 20.0f, 0.0f);
@@ -3430,12 +3419,12 @@ void Unknown801A5FF8(struct ObjGroup *arg0) {
     d_set_colour_num(3);
     label = (struct ObjLabel *) d_makeobj(D_LABEL, AsDynId(0));
     d_set_rel_pos(5.0f, 18.0f, 0.0f);
-    d_set_parm_ptr(PARM_PTR_CHAR, "ITEM 3");
-    d_add_valptr("menu2", 0x40000, 0, (uintptr_t) NULL);
+    d_set_parm_ptr(PARM_PTR_CHAR, (void *) "ITEM 3");
+    d_add_valptr((DynId) "menu2", 0x40000, 0, (uintptr_t) NULL);
     sItemsInMenu = 3;
-    d_end_group("menug");
+    d_end_group((DynId) "menug");
 
-    menugrp = (struct ObjGroup *) d_use_obj("menug");
+    menugrp = (struct ObjGroup *) d_use_obj((DynId) "menug");
     menuview = make_view(
         "menuview", (VIEW_2_COL_BUF | VIEW_ALLOC_ZBUF | VIEW_BORDERED | VIEW_UNK_2000 | VIEW_UNK_4000),
         2, 100, 20, 110, 150, menugrp);
@@ -3447,14 +3436,10 @@ void Unknown801A5FF8(struct ObjGroup *arg0) {
 }
 
 /* 254AC0 -> 254DFC; orig name: PutSprite */
-// thanks to gamemasterplc again for fixing this
 void gd_put_sprite(u16 *sprite, s32 x, s32 y, s32 wx, s32 wy) {
     s32 c; // 5c
     s32 r; // 58
-    // Must be game screen aspect ratio, not GFX window aspect ratio
-    f32 aspect = ((float) SCREEN_WIDTH) / ((float) SCREEN_HEIGHT ) * 0.75;
-    x *= aspect;
-    
+
     gSPDisplayList(next_gfx(), osVirtualToPhysical(gd_dl_sprite_start_tex_block));
     for (r = 0; r < wy; r += 32) {
         for (c = 0; c < wx; c += 32) {
@@ -3485,18 +3470,18 @@ void gd_setup_cursor(struct ObjGroup *parentgrp) {
     gd_put_sprite((u16 *) gd_texture_hand_open, 100, 100, 32, 32);
     gd_enddlsplist_parent();
 
-    d_start_group("mouseg");
+    d_start_group((DynId) "mouseg");
     net = (struct ObjNet *) d_makeobj(D_NET, AsDynId(0));
     d_set_init_pos(0.0f, 0.0f, 0.0f);
     d_set_type(3);
     d_set_shapeptrptr(&sHandShape);
-    d_end_group("mouseg");
+    d_end_group((DynId) "mouseg");
 
-    mousegrp = (struct ObjGroup *) d_use_obj("mouseg");
+    mousegrp = (struct ObjGroup *) d_use_obj((DynId) "mouseg");
     mouseview = make_view("mouseview",
                           (VIEW_2_COL_BUF | VIEW_ALLOC_ZBUF | VIEW_1_CYCLE | VIEW_MOVEMENT | VIEW_DRAW),
                           2, 0, 0, 32, 32, mousegrp);
-    mouseview->flags &= ~VIEW_UPDATE;
+    mouseview->flags = (enum GdViewFlags) (mouseview->flags & ~VIEW_UPDATE);
     sHandView = mouseview;
     if (parentgrp != NULL) {
         addto_group(parentgrp, &mousegrp->header);
@@ -3531,8 +3516,8 @@ void make_timer_gadgets(void) {
     s32 i;                      // 48
     char timerNameBuf[0x20];    // 28
 
-    d_start_group("timerg");
-    d_makeobj(D_GADGET, "bar1");
+    d_start_group((DynId) "timerg");
+    d_makeobj(D_GADGET, (DynId) "bar1");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(20.0f, 5.0f, 0.0f);
     d_set_scale(50.0f, 5.0f, 0.0f);
@@ -3540,10 +3525,10 @@ void make_timer_gadgets(void) {
     d_set_parm_f(PARM_F_RANGE_LEFT, 0);
     d_set_parm_f(PARM_F_RANGE_RIGHT, sTimeScaleFactor);
     d_add_valptr(AsDynId(0), 0, 2, (uintptr_t) &sTimeScaleFactor);
-    bar1 = (struct ObjGadget *) d_use_obj("bar1");
+    bar1 = (struct ObjGadget *) d_use_obj((DynId) "bar1");
     bar1->unk5C = 1;
 
-    d_makeobj(D_GADGET, "bar2");
+    d_makeobj(D_GADGET, (DynId) "bar2");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(70.0f, 5.0f, 0.0f);
     d_set_scale(50.0f, 5.0f, 0.0f);
@@ -3551,10 +3536,10 @@ void make_timer_gadgets(void) {
     d_set_parm_f(PARM_F_RANGE_LEFT, 0);
     d_set_parm_f(PARM_F_RANGE_RIGHT, sTimeScaleFactor);
     d_add_valptr(AsDynId(0), 0, 2, (uintptr_t) &sTimeScaleFactor);
-    bar2 = (struct ObjGadget *) d_use_obj("bar2");
+    bar2 = (struct ObjGadget *) d_use_obj((DynId) "bar2");
     bar2->unk5C = 9;
 
-    d_makeobj(D_GADGET, "bar3");
+    d_makeobj(D_GADGET, (DynId) "bar3");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(120.0f, 5.0f, 0.0f);
     d_set_scale(50.0f, 5.0f, 0.0f);
@@ -3562,10 +3547,10 @@ void make_timer_gadgets(void) {
     d_set_parm_f(PARM_F_RANGE_LEFT, 0);
     d_set_parm_f(PARM_F_RANGE_RIGHT, sTimeScaleFactor);
     d_add_valptr(AsDynId(0), 0, 2, (uintptr_t) &sTimeScaleFactor);
-    bar3 = (struct ObjGadget *) d_use_obj("bar3");
+    bar3 = (struct ObjGadget *) d_use_obj((DynId) "bar3");
     bar3->unk5C = 1;
 
-    d_makeobj(D_GADGET, "bar4");
+    d_makeobj(D_GADGET, (DynId) "bar4");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(170.0f, 5.0f, 0.0f);
     d_set_scale(50.0f, 5.0f, 0.0f);
@@ -3573,10 +3558,10 @@ void make_timer_gadgets(void) {
     d_set_parm_f(PARM_F_RANGE_LEFT, 0);
     d_set_parm_f(PARM_F_RANGE_RIGHT, sTimeScaleFactor);
     d_add_valptr(AsDynId(0), 0, 2, (uintptr_t) &sTimeScaleFactor);
-    bar4 = (struct ObjGadget *) d_use_obj("bar4");
+    bar4 = (struct ObjGadget *) d_use_obj((DynId) "bar4");
     bar4->unk5C = 9;
 
-    d_makeobj(D_GADGET, "bar5");
+    d_makeobj(D_GADGET, (DynId) "bar5");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(220.0f, 5.0f, 0.0f);
     d_set_scale(50.0f, 5.0f, 0.0f);
@@ -3584,10 +3569,10 @@ void make_timer_gadgets(void) {
     d_set_parm_f(PARM_F_RANGE_LEFT, 0);
     d_set_parm_f(PARM_F_RANGE_RIGHT, sTimeScaleFactor);
     d_add_valptr(AsDynId(0), 0, 2, (uintptr_t) &sTimeScaleFactor);
-    bar5 = (struct ObjGadget *) d_use_obj("bar5");
+    bar5 = (struct ObjGadget *) d_use_obj((DynId) "bar5");
     bar5->unk5C = 1;
 
-    d_makeobj(D_GADGET, "bar6");
+    d_makeobj(D_GADGET, (DynId) "bar6");
     d_set_obj_draw_flag(OBJ_IS_GRABBALE);
     d_set_world_pos(270.0f, 5.0f, 0.0f);
     d_set_scale(50.0f, 5.0f, 0.0f);
@@ -3595,7 +3580,7 @@ void make_timer_gadgets(void) {
     d_set_parm_f(PARM_F_RANGE_LEFT, 0);
     d_set_parm_f(PARM_F_RANGE_RIGHT, sTimeScaleFactor);
     d_add_valptr(AsDynId(0), 0, 2, (uintptr_t) &sTimeScaleFactor);
-    bar6 = (struct ObjGadget *) d_use_obj("bar6");
+    bar6 = (struct ObjGadget *) d_use_obj((DynId) "bar6");
     bar6->unk5C = 9;
 
     for (i = 0; i < GD_NUM_TIMERS; i++) {
@@ -3618,15 +3603,15 @@ void make_timer_gadgets(void) {
         timerLabel->unk30 = 3;
     }
 
-    d_end_group("timerg");
-    timerg = (struct ObjGroup *) d_use_obj("timerg");
+    d_end_group((DynId) "timerg");
+    timerg = (struct ObjGroup *) d_use_obj((DynId) "timerg");
     timersview = make_view(
         "timersview", (VIEW_2_COL_BUF | VIEW_ALLOC_ZBUF | VIEW_1_CYCLE | VIEW_MOVEMENT | VIEW_DRAW), 2,
         0, 10, 320, 270, timerg);
     timersview->colour.r = 0.0f;
     timersview->colour.g = 0.0f;
     timersview->colour.b = 0.0f;
-    timersview->flags &= ~VIEW_UPDATE;
+    timersview->flags = (enum GdViewFlags) (timersview->flags & ~VIEW_UPDATE);
     timersview->proc = view_proc_print_timers;
     func_801A5BE8(timersview);
 
@@ -3641,9 +3626,89 @@ void Unknown801A6E30(UNUSED u32 a0) {
 void Unknown801A6E44(UNUSED u32 a0) {
 }
 
+#ifndef NO_SEGMENTED_MEMORY
+/* 255628 -> 255704; orig name: func_801A6E58 */
+void gd_block_dma(u32 devAddr, void *vAddr, s32 size) {
+    s32 transfer; // 2c
+
+    do {
+        if ((transfer = size) > 0x1000) {
+            transfer = 0x1000;
+        }
+
+        osPiStartDma(&D_801BE980, OS_MESG_PRI_NORMAL, OS_READ, devAddr, vAddr, transfer, &sGdDMAQueue);
+        osRecvMesg(&sGdDMAQueue, &D_801BE97C, OS_MESG_BLOCK);
+        devAddr += transfer;
+        vAddr = (void *) ((uintptr_t) vAddr + transfer);
+        size -= 0x1000;
+    } while (size > 0);
+}
+
+/* 255704 -> 255988 */
+struct GdObj *load_dynlist(struct DynList *dynlist) {
+    u32 segSize;               // 4c
+    u8 *allocSegSpace;         // 48
+    void *allocPtr;            // 44
+    uintptr_t dynlistSegStart; // 40
+    uintptr_t dynlistSegEnd;   // 3c
+    s32 i;                     // 38
+    s32 sp34;                  // tlbPage
+    struct GdObj *loadedList;  // 30
+
+    i = -1;
+
+    while (sDynLists[++i].list != NULL) {
+        if (sDynLists[i].list == dynlist) {
+            break;
+        }
+    }
+
+    if (sDynLists[i].list == NULL) {
+        fatal_printf("load_dynlist() ptr not found in any banks");
+    }
+
+    switch (sDynLists[i].flag) {
+        case STD_LIST_BANK:
+            dynlistSegStart = (uintptr_t) _gd_dynlistsSegmentRomStart;
+            dynlistSegEnd = (uintptr_t) _gd_dynlistsSegmentRomEnd;
+            break;
+        default:
+            fatal_printf("load_dynlist() unkown bank");
+    }
+
+    segSize = dynlistSegEnd - dynlistSegStart;
+    allocSegSpace = gd_malloc_temp(segSize + 0x10000);
+
+    if ((allocPtr = (void *) allocSegSpace) == NULL) {
+        fatal_printf("Not enough DRAM for DATA segment \n");
+    }
+
+    allocSegSpace = (u8 *) (((uintptr_t) allocSegSpace + 0x10000) & 0xFFFF0000);
+    gd_block_dma(dynlistSegStart, (void *) allocSegSpace, segSize);
+    osUnmapTLBAll();
+
+    sp34 = (segSize / 0x10000) / 2 + 1; //? has to be written this way
+    if (sp34 >= 31) {
+        fatal_printf("load_dynlist() too many TLBs");
+    }
+
+    for (i = 0; i < sp34; i++) {
+        osMapTLB(i, OS_PM_64K, (void *) (uintptr_t) (0x04000000 + (i * 2 * 0x10000)),
+                 GD_LOWER_24(((uintptr_t) allocSegSpace) + (i * 2 * 0x10000)),
+                 GD_LOWER_24(((uintptr_t) allocSegSpace) + (i * 2 * 0x10000) + 0x10000), -1);
+    }
+
+    loadedList = proc_dynlist(dynlist);
+    gd_free(allocPtr);
+    osUnmapTLBAll();
+
+    return loadedList;
+}
+#else
 struct GdObj *load_dynlist(struct DynList *dynlist) {
     return proc_dynlist(dynlist);
 }
+#endif
 
 /* 255988 -> 25599C */
 void stub_801A71B8(UNUSED u32 a0) {

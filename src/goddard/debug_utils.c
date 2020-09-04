@@ -1,8 +1,9 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 #include <stdarg.h>
-#include <macros.h>
-#include "gd_types.h"
+
 #include "debug_utils.h"
+#include "gd_types.h"
+#include "macros.h"
 #include "renderer.h"
 
 // types
@@ -669,7 +670,7 @@ void ascii_to_uppercase(char *str) {
 char *gd_strdup(const char *src) {
     char *dst; // sp24
 
-    dst = gd_malloc_perm((gd_strlen(src) + 1) * sizeof(char));
+    dst = (char*) gd_malloc_perm((gd_strlen(src) + 1) * sizeof(char));
 
     if (dst == NULL) {
         fatal_printf("gd_strdup(): out of memory");
@@ -778,7 +779,7 @@ struct GdFile *gd_fopen(const char *filename, const char *mode) {
         return NULL;
     }
 
-    f = gd_malloc_perm(sizeof(struct GdFile));
+    f = (struct GdFile*) gd_malloc_perm(sizeof(struct GdFile));
     if (f == NULL) {
         fatal_printf("gd_fopen() Out of memory loading '%s'", filename);
         return NULL;

@@ -1,19 +1,19 @@
 #include <ultra64.h>
 
-#include "sm64.h"
-#include "seq_ids.h"
+#include "area.h"
+#include "audio/external.h"
+#include "engine/graph_node.h"
+#include "engine/math_util.h"
+#include "level_table.h"
 #include "level_update.h"
 #include "main.h"
-#include "engine/math_util.h"
-#include "area.h"
-#include "profiler.h"
-#include "audio/external.h"
-#include "print.h"
-#include "save_file.h"
-#include "sound_init.h"
-#include "engine/graph_node.h"
 #include "paintings.h"
-#include "level_table.h"
+#include "print.h"
+#include "profiler.h"
+#include "save_file.h"
+#include "seq_ids.h"
+#include "sm64.h"
+#include "sound_init.h"
 #include "thread6.h"
 
 #define MUSIC_NONE 0xFFFF
@@ -153,10 +153,11 @@ void play_menu_sounds(s16 soundMenuFlags) {
     if (soundMenuFlags & 0x100) {
         play_menu_sounds_extra(20, NULL);
     }
-    
+#ifdef VERSION_SH
     if ((soundMenuFlags & 0x20) != 0) {
         queue_rumble_data(10, 60);
     }
+#endif
 }
 
 /**
@@ -265,7 +266,7 @@ void stop_cap_music(void) {
 }
 
 void play_menu_sounds_extra(s32 a, void *b) {
-    play_sound(menuSoundsExtra[a], b);
+    play_sound(menuSoundsExtra[a], (f32*) b);
 }
 
 void audio_game_loop_tick(void) {
@@ -283,7 +284,7 @@ void thread4_sound(UNUSED void *arg) {
     vec3f_copy(unused80339DC0, gVec3fZero);
 
     osCreateMesgQueue(&sSoundMesgQueue, sSoundMesgBuf, ARRAY_COUNT(sSoundMesgBuf));
-    set_vblank_handler(1, &sSoundVblankHandler, &sSoundMesgQueue, (OSMesg) 512);
+    set_vblank_handler(1, &sSoundVblankHandler, &sSoundMesgQueue, (void**) (OSMesg) 512);
 
     while (TRUE) {
         OSMesg msg;

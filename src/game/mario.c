@@ -1,41 +1,38 @@
-#include <ultra64.h>
+#include <PR/ultratypes.h>
 
 #include "sm64.h"
-#include "mario.h"
 #include "area.h"
+#include "audio/data.h"
 #include "audio/external.h"
 #include "behavior_actions.h"
 #include "behavior_data.h"
 #include "camera.h"
-#include "mario_misc.h"
-#include "game_init.h"
 #include "engine/graph_node.h"
+#include "engine/math_util.h"
+#include "engine/surface_collision.h"
+#include "game_init.h"
 #include "interaction.h"
+#include "level_table.h"
 #include "level_update.h"
-#include "memory.h"
 #include "main.h"
-#include "mario_actions_object.h"
+#include "mario.h"
+#include "mario_actions_airborne.h"
 #include "mario_actions_automatic.h"
 #include "mario_actions_cutscene.h"
-#include "mario_actions_submerged.h"
-#include "mario_actions_airborne.h"
 #include "mario_actions_moving.h"
+#include "mario_actions_object.h"
 #include "mario_actions_stationary.h"
+#include "mario_actions_submerged.h"
+#include "mario_misc.h"
 #include "mario_step.h"
-#include "engine/math_util.h"
+#include "memory.h"
 #include "object_fields.h"
 #include "object_helpers.h"
+#include "object_list_processor.h"
 #include "print.h"
 #include "save_file.h"
 #include "sound_init.h"
-#include "engine/surface_collision.h"
-#include "level_table.h"
 #include "thread6.h"
-#include "pc/configfile.h"
-#include "pc/cheats.h"
-#ifdef BETTERCAMERA
-#include "bettercamera.h"
-#endif
 
 u32 unused80339F10;
 s8 filler80339F1C[20];
@@ -70,8 +67,8 @@ s16 set_mario_animation(struct MarioState *m, s32 targetAnimID) {
     struct Animation *targetAnim = m->animation->targetAnim;
 
     if (load_patchable_table(m->animation, targetAnimID)) {
-        targetAnim->values = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->values);
-        targetAnim->index = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->index);
+        targetAnim->values = (s16*) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->values);
+        targetAnim->index = (u16*) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->index);
     }
 
     if (o->header.gfx.unk38.animID != targetAnimID) {
@@ -103,8 +100,8 @@ s16 set_mario_anim_with_accel(struct MarioState *m, s32 targetAnimID, s32 accel)
     struct Animation *targetAnim = m->animation->targetAnim;
 
     if (load_patchable_table(m->animation, targetAnimID)) {
-        targetAnim->values = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->values);
-        targetAnim->index = (void *) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->index);
+        targetAnim->values = (s16*) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->values);
+        targetAnim->index = (u16*) VIRTUAL_TO_PHYSICAL((u8 *) targetAnim + (uintptr_t) targetAnim->index);
     }
 
     if (o->header.gfx.unk38.animID != targetAnimID) {
@@ -187,10 +184,10 @@ s16 find_mario_anim_flags_and_translation(struct Object *obj, s32 yaw, Vec3s tra
     f32 dx;
     f32 dz;
 
-    struct Animation *curAnim = (void *) obj->header.gfx.unk38.curAnim;
+    struct Animation *curAnim = obj->header.gfx.unk38.curAnim;
     s16 animFrame = geo_update_animation_frame(&obj->header.gfx.unk38, NULL);
-    u16 *animIndex = segmented_to_virtual((void *) curAnim->index);
-    s16 *animValues = segmented_to_virtual((void *) curAnim->values);
+    u16 *animIndex = (u16*) segmented_to_virtual((void *) curAnim->index);
+    s16 *animValues = (s16*) segmented_to_virtual((void *) curAnim->values);
 
     f32 s = (f32) sins(yaw);
     f32 c = (f32) coss(yaw);
@@ -350,7 +347,7 @@ void play_mario_heavy_landing_sound_once(struct MarioState *m, u32 soundBits) {
 }
 
 /**
- * Plays action and mario sounds relevant to what was passed into the function.
+ * Plays action and Mario sounds relevant to what was passed into the function.
  */
 void play_mario_sound(struct MarioState *m, s32 actionSound, s32 marioSound) {
     if (actionSound == SOUND_ACTION_TERRAIN_JUMP) {
@@ -388,7 +385,7 @@ void mario_set_forward_vel(struct MarioState *m, f32 forwardVel) {
 }
 
 /**
- * Returns the slipperines class of Mario's floor.
+ * Returns the slipperiness class of Mario's floor.
  */
 s32 mario_get_floor_class(struct MarioState *m) {
     s32 floorClass;
@@ -765,7 +762,7 @@ void set_steep_jump_action(struct MarioState *m) {
 }
 
 /**
- * Set's Marios vertical speed from his forward speed.
+ * Sets Mario's vertical speed from his forward speed.
  */
 static void set_mario_y_vel_based_on_fspeed(struct MarioState *m, f32 initialVelY, f32 multiplier) {
     // get_additive_y_vel_for_jumps is always 0 and a stubbed function.
@@ -1119,9 +1116,8 @@ s32 hurt_and_set_mario_action(struct MarioState *m, u32 action, u32 actionArg, s
 }
 
 /**
- * Checks a variety of inputs for common transitions between
- * many different actions. A common variant of the
- * below function.
+ * Checks a variety of inputs for common transitions between many different
+ * actions. A common variant of the below function.
  */
 s32 check_common_action_exits(struct MarioState *m) {
     if (m->input & INPUT_A_PRESSED) {
@@ -1141,9 +1137,8 @@ s32 check_common_action_exits(struct MarioState *m) {
 }
 
 /**
- * Checks a variety of inputs for common transitions between
- * many different object holding actions. A holding variant of the
- * above function.
+ * Checks a variety of inputs for common transitions between many different
+ * object holding actions. A holding variant of the above function.
  */
 s32 check_common_hold_action_exits(struct MarioState *m) {
     if (m->input & INPUT_A_PRESSED) {
@@ -1215,23 +1210,8 @@ u8 sSquishScaleOverTime[16] = { 0x46, 0x32, 0x32, 0x3C, 0x46, 0x50, 0x50, 0x3C,
 void squish_mario_model(struct MarioState *m) {
     if (m->squishTimer != 0xFF) {
         // If no longer squished, scale back to default.
-        // Also handles the Tiny Mario and Huge Mario cheats.
         if (m->squishTimer == 0) {
-            if (Cheats.EnableCheats) {
-                if (Cheats.HugeMario) {
-                    vec3f_set(m->marioObj->header.gfx.scale, 2.5f, 2.5f, 2.5f);
-                }
-                else if (Cheats.TinyMario) {
-                    vec3f_set(m->marioObj->header.gfx.scale, 0.2f, 0.2f, 0.2f);
-                }
-                else {
-                    vec3f_set(m->marioObj->header.gfx.scale, 1.0f, 1.0f, 1.0f);
-                }
-            }
-            else {
-                vec3f_set(m->marioObj->header.gfx.scale, 1.0f, 1.0f, 1.0f);
-            }
-            
+            vec3f_set(m->marioObj->header.gfx.scale, 1.0f, 1.0f, 1.0f);
         }
         // If timer is less than 16, rubber-band Mario's size scale up and down.
         else if (m->squishTimer <= 16) {
@@ -1326,14 +1306,7 @@ void update_mario_joystick_inputs(struct MarioState *m) {
     }
 
     if (m->intendedMag > 0.0f) {
-#ifndef BETTERCAMERA
         m->intendedYaw = atan2s(-controller->stickY, controller->stickX) + m->area->camera->yaw;
-#else
-        if (gLakituState.mode != CAMERA_MODE_NEWCAM)
-            m->intendedYaw = atan2s(-controller->stickY, controller->stickX) + m->area->camera->yaw;
-        else
-            m->intendedYaw = atan2s(-controller->stickY, controller->stickX)-newcam_yaw+0x4000;
-#endif
         m->input |= INPUT_NONZERO_ANALOG;
     } else {
         m->intendedYaw = m->faceAngle[1];
@@ -1413,13 +1386,6 @@ void update_mario_inputs(struct MarioState *m) {
     update_mario_geometry_inputs(m);
 
     debug_print_speed_action_normal(m);
-    
-    /* Moonjump cheat */
-    while (Cheats.MoonJump == true && Cheats.EnableCheats == true && m->controller->buttonDown & L_TRIG ){
-        m->vel[1] = 25;
-        break;   // TODO: Unneeded break?
-    }
-    /*End of moonjump cheat */
 
     if (gCameraMovementFlags & CAM_MOVE_C_UP_MODE) {
         if (m->action & ACT_FLAG_ALLOW_FIRST_PERSON) {
@@ -1534,6 +1500,7 @@ void update_mario_health(struct MarioState *m) {
         // Play a noise to alert the player when Mario is close to drowning.
         if (((m->action & ACT_GROUP_MASK) == ACT_GROUP_SUBMERGED) && (m->health < 0x300)) {
             play_sound(SOUND_MOVING_ALMOST_DROWNING, gDefaultSoundArgs);
+#ifdef VERSION_SH
             if (!gRumblePakTimer) {
                 gRumblePakTimer = 36;
                 if (is_rumble_finished_and_queue_empty()) {
@@ -1542,6 +1509,7 @@ void update_mario_health(struct MarioState *m) {
             }
         } else {
             gRumblePakTimer = 0;
+#endif
         }
     }
 }
@@ -1582,8 +1550,7 @@ void sink_mario_in_quicksand(struct MarioState *m) {
     struct Object *o = m->marioObj;
 
     if (o->header.gfx.throwMatrix) {
-        // TODO: throwMatrix should probably be an actual matrix pointer
-        *(f32 *) ((u8 *) o->header.gfx.throwMatrix + 0x34) -= m->quicksandDepth;
+        (*o->header.gfx.throwMatrix)[3][1] -= m->quicksandDepth;
     }
 
     o->header.gfx.pos[1] -= m->quicksandDepth;
@@ -1719,6 +1686,7 @@ static void debug_update_mario_cap(u16 button, s32 flags, u16 capTimer, u16 capM
     }
 }
 
+#ifdef VERSION_SH
 void func_sh_8025574C(void) {
     if (gMarioState->particleFlags & PARTICLE_HORIZONTAL_STAR) {
         queue_rumble_data(5, 80);
@@ -1731,30 +1699,14 @@ void func_sh_8025574C(void) {
         reset_rumble_timers();
     }
 }
+#endif
 
 /**
  * Main function for executing Mario's behavior.
  */
 s32 execute_mario_action(UNUSED struct Object *o) {
     s32 inLoop = TRUE;
-    /**
-    * Cheat stuff
-    */
 
-    if (Cheats.EnableCheats)
-    {
-        if (Cheats.GodMode)
-            gMarioState->health = 0x880;
-
-        if (Cheats.InfiniteLives && gMarioState->numLives < 99)
-            gMarioState->numLives += 1;
-
-        if (Cheats.SuperSpeed && gMarioState->forwardVel > 0)
-            gMarioState->forwardVel += 100;
-    }
-    /**
-    * End of cheat stuff
-    */
     if (gMarioState->action) {
         gMarioState->marioObj->header.gfx.node.flags &= ~GRAPH_RENDER_INVISIBLE;
         mario_reset_bodystate(gMarioState);
@@ -1827,7 +1779,9 @@ s32 execute_mario_action(UNUSED struct Object *o) {
 
         play_infinite_stairs_music();
         gMarioState->marioObj->oInteractStatus = 0;
+#ifdef VERSION_SH
         func_sh_8025574C();
+#endif
 
         return gMarioState->particleFlags;
     }
@@ -1940,7 +1894,7 @@ void init_mario_from_save_file(void) {
     gMarioState->numLives = 4;
     gMarioState->health = 0x880;
 
-    gMarioState->unkB8 = gMarioState->numStars;
+    gMarioState->prevNumStarsForDialog = gMarioState->numStars;
     gMarioState->unkB0 = 0xBD;
 
     gHudDisplay.coins = 0;

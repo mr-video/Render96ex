@@ -110,7 +110,7 @@ void geo_layout_cmd_branch_and_link(void) {
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (uintptr_t) (gGeoLayoutCommand + CMD_PROCESS_OFFSET(8));
     gGeoLayoutStack[gGeoLayoutStackIndex++] = (gCurGraphNodeIndex << 16) + gGeoLayoutReturnIndex;
     gGeoLayoutReturnIndex = gGeoLayoutStackIndex;
-    gGeoLayoutCommand = segmented_to_virtual(cur_geo_cmd_ptr(0x04));
+    gGeoLayoutCommand = (u8*) segmented_to_virtual(cur_geo_cmd_ptr(0x04));
 }
 
 // 0x01: Terminate geo layout
@@ -130,7 +130,7 @@ void geo_layout_cmd_branch(void) {
         gGeoLayoutStack[gGeoLayoutStackIndex++] = (uintptr_t) (gGeoLayoutCommand + CMD_PROCESS_OFFSET(8));
     }
 
-    gGeoLayoutCommand = segmented_to_virtual(cur_geo_cmd_ptr(0x04));
+    gGeoLayoutCommand = (u8 *) segmented_to_virtual(cur_geo_cmd_ptr(0x04));
 }
 
 // 0x03: Return from branch
@@ -210,13 +210,13 @@ void geo_layout_cmd_node_root(void) {
 
     // number of entries to allocate for gGeoViews array
     // at least 2 are allocated by default
-    // cmd+0x02 = 0x00: mario face, 0x0A: all other levels
+    // cmd+0x02 = 0x00: Mario face, 0x0A: all other levels
     gGeoNumViews = cur_geo_cmd_s16(0x02) + 2;
 
     graphNode = init_graph_node_root(gGraphNodePool, NULL, 0, x, y, width, height);
 
     // TODO: check type
-    gGeoViews = alloc_only_pool_alloc(gGraphNodePool, gGeoNumViews * sizeof(struct GraphNode *));
+    gGeoViews = (struct GraphNode**) alloc_only_pool_alloc(gGraphNodePool, gGeoNumViews * sizeof(struct GraphNode *));
 
     graphNode->views = gGeoViews;
     graphNode->numViews = gGeoNumViews;
@@ -780,7 +780,7 @@ struct GraphNode *process_geo_layout(struct AllocOnlyPool *pool, void *segptr) {
     gGeoLayoutStackIndex = 2;
     gGeoLayoutReturnIndex = 2; // stack index is often copied here?
 
-    gGeoLayoutCommand = segmented_to_virtual(segptr);
+    gGeoLayoutCommand = (u8*) segmented_to_virtual(segptr);
 
     gGraphNodePool = pool;
 
