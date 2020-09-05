@@ -509,6 +509,7 @@ ASFLAGS := -I include -I $(BUILD_DIR) $(VERSION_ASFLAGS)
 
 LDFLAGS := $(PLATFORM_LDFLAGS) $(GFX_LDFLAGS)
 LDFLAGS += -Wno-narrowing
+LDFLAGS += -lopenal32
 
 endif
 
